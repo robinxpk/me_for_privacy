@@ -1,20 +1,9 @@
 import pandas as pd
 
-nhanes_data_path = r"data/DEMO_L.xpt"
+data_path = r"data/"
 
-nhanes = pd.read_sas(nhanes_data_path)
+nhanes_demo = pd.read_sas(f"{data_path}DEMO_L.xpt")
+nhanes_diet1 = pd.read_sas(f"{data_path}DR1IFF_L.xpt")
 
+nhanes = pd.concat([nhanes_demo, nhanes_diet1], ignore_index = True, sort = False)
 
-
-print("Done")
-
-
-
-
-nhanes_rename_dict = {
-    # Format: {"newname": "oldname", ...}
-    "SEQN": "id"
-}
-nhanes.rename(
-    index = nhanes_rename_dict
-)
