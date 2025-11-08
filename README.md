@@ -1,5 +1,20 @@
 # Measurement for Privacy
 
+## Virtual Environment Setup (Conda)
+
+Based on the given `.yaml`-file, create a conda environment using: 
+
+`conda env create -f environment.yaml`
+
+In case one wants to update the `.yaml` file, create a new file using: 
+
+`conda env export > environment.yaml`
+
+Some useful prompts: 
+
+- list environments: `conda info --envs`
+- Remove environment and its dependencies: `conda create --name envname`
+
 ## Data Sets
 
 ### National Health and Nutrition Examination Survey [NHANES]
