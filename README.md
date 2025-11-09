@@ -1,5 +1,27 @@
 # Measurement for Privacy
 
+## TODO
+Alle Variablen Errorterm - unabhängig von socially desired value - sonst kein Schutz gegen identifizierbar
+
+Boolean pro variable ziehen (50%?)
+If TRUE: Fehler 
+kategorisch: 
+    random draw aus allen unique Kategorien --> Gar keine Informationen über distri
+    Nach Verteilung in Daten --> Enthält dann implizit Information über wahre Verteilung
+numerisch: 
+    Emp. Inverse Probabilitity transform into Gaussian --> Error with random variance, damit Outlier nicht mehr identifizierbar und auch random entstehen können--> re-transform (Sollte gut mit Outliern dealen)
+
+
+measure for LDP? 
+Plots: Selektierte Cluster - vorher u. nachher
+
+
+
+1. Draw boolean for each variable i.e. column and assign error according to value
+
+
+
+
 ## Virtual Environment Setup (Conda)
 
 Based on the given `.yaml`-file, create a conda environment using: 
@@ -14,6 +36,12 @@ Some useful prompts:
 
 - list environments: `conda info --envs`
 - Remove environment and its dependencies: `conda create --name envname`
+
+!! When running code in VSCode, check that the correct python interpreter is used: 
+
+1) cntrl + p --> Type "Python: Select Interpreter" --> Select correct environment
+
+2) When using interactive mode, check that environment is used (displayed on the top right corner)
 
 ## Data Sets
 

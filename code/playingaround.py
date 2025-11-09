@@ -12,7 +12,6 @@ data_path = r"data/"
 nhanes_demo = pd.read_sas(f"{data_path}DEMO_L.xpt")
 nhanes_diet1 = pd.read_sas(f"{data_path}DR1IFF_L.xpt")
 
-
 key = "SEQN"
 
 # make sure key has the same dtype
@@ -24,47 +23,24 @@ nhanes = pd.merge(
     nhanes_demo, nhanes_diet1, on=key, how="inner", validate="one_to_many"
 )
 
-# nhanes = pd.concat([nhanes_demo, nhanes_diet1], ignore_index=True, sort=False)
-
-
-# %%
-# Set up automatic layout
-num_cols = len(nhanes.columns)
-ncols = 3  # number of plots per row
-nrows = (num_cols + ncols - 1) // ncols  # rows needed
-
-plt.figure(figsize=(15, 4 * nrows))
-
-for i, col in enumerate(nhanes.columns, 1):
-    plt.subplot(nrows, ncols, i)
-
-    if pd.api.types.is_numeric_dtype(nhanes[col]):
-        nhanes[col].dropna().plot(kind="hist", bins=30, edgecolor="black")
-        plt.title(f"{col} (Histogram)")
-    else:
-        nhanes[col].value_counts(dropna=False).plot(kind="bar")
-        plt.title(f"{col} (Bar Plot)")
-
-    plt.tight_layout()
-
-plt.show()
-
 
 # %%
 
-nhanes_2 = nhanes.loc[:, ["RIDAGEYR", "DR1IKCAL"]]
+nhanes_2 = nhanes.loc[:, [
+        "DR1DAY", # Intake day of the week
+        "DR1LANG", # Language respondent used mostly
+        "RIDAGEYR", # Age
+        "DR1IPROT", # Protein (gm)
+        "DR1IKCAL", # Energy (kcal)
+    ]
+]
 nhanes_2 = nhanes_2.dropna()
 
-# %%
-# visualize data ####
-# TODO: high dimensions??
-# Visualize the dataset
-plt.figure(figsize=(10, 6))
-nhanes_2.plot.scatter(x="RIDAGEYR", y="DR1IKCAL", figsize=(10, 6))
-plt.xlabel("Age")
-plt.ylabel("Energy in kcal")
-plt.show()
 
+# %%
+# Scatter plot of variables in data
+# ! Run only if not too many variables contained in df
+pd.plotting.scatter_matrix(nhanes_2, alpha = 0.2, s = 5)
 
 # %%
 # choose epsilon ####
@@ -83,7 +59,6 @@ def plot_k_distance_graph(x, k):
     plt.axhline(y=2, color="red", linestyle="--", linewidth=1.5, label="y = 2")
     plt.axhline(y=3, color="blue", linestyle="--", linewidth=1.5, label="y = 3")
     plt.show()
-
 
 # Plot k-distance graph
 
@@ -132,4 +107,9 @@ print(f"Number of noise points: {n_noise}")
 # TODO: color noise points vs clusters to see where they are -> noise gets different error
 # clusters.labels_()  # cluster labels for each point in the data set
 
+# %%
+labels = np.asarray(clusters)
+K = np.unique(labels).size
+cmap = plt.get_cmap("tab10", K)  
+pd.plotting.scatter_matrix(nhanes_2, alpha = 0.2, s = 5, c = labels)
 # %%
