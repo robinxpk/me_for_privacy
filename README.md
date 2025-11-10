@@ -1,26 +1,26 @@
 # Measurement for Privacy
 
 ## TODO
-Alle Variablen Errorterm - unabhängig von socially desired value - sonst kein Schutz gegen identifizierbar
+_Alle_ Variablen Errorterm - unabhängig von socially desired value - sonst kein Schutz gegen identifizierbar
 
-Boolean pro variable ziehen (50%?)
-If TRUE: Fehler 
-kategorisch: 
-    random draw aus allen unique Kategorien --> Gar keine Informationen über distri
-    Nach Verteilung in Daten --> Enthält dann implizit Information über wahre Verteilung
-numerisch: 
-    Emp. Inverse Probabilitity transform into Gaussian --> Error with random variance, damit Outlier nicht mehr identifizierbar und auch random entstehen können--> re-transform (Sollte gut mit Outliern dealen)
-
+0) DBScan result for a visible number of clusters prior to error 
+1) Boolean pro variable ziehen (50%?)
+2) If TRUE: Fehler 
+    Hierzu: 
+    - Numerisch: ePIT auf Variable und Variable in Normalverteilung transformieren
+        Normalen Fehlerterm aufaddieren: 
+        Fehlervarianz randomly ziehen
+        Grund für random draw: Kein gesondertes Behandeln der Outlier
+            sonder es kann durch eine sehr hohe Fehlervarianz auch zu Outliern kommen. So erhalten Outlier nicht nur möglicherweise einen Fehlerterm, sondern bestehende Outlier werden durch mögliche neue Outlier "gemasked". 
+            Natürlich kann es auch dazu kommen, dass Outlier noch weiter in die Outlier-Richtung gezogen werden. Hier machen wir uns aber erstmal keine Sorgen, weil das durch gutes Masking (hoffentlich) weniger relevant ist.
+    - Kategorisch: Zufälliges Ziehen aus...
+        ... möglichen Kategorien (Uniform) --> Enthält keine Informationen bzgl der empirischen Verteilung der Kategorien
+        ... empirische Verteilung der Kategorien --> Möglicherweise kann so die empirische Verteilung beibehalten werden, allerdings weiß ich nicht, ob das das Signal nicht weird macht? Für uniform Fehler scheint es mir einfacher zu korrigieren
+        Nicht sicher was davon besser wäre?
+3) Re-Fit DBScan and display same clusters
 
 measure for LDP? 
 Plots: Selektierte Cluster - vorher u. nachher
-
-
-
-1. Draw boolean for each variable i.e. column and assign error according to value
-
-
-
 
 ## Virtual Environment Setup (Conda)
 

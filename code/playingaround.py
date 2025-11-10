@@ -7,7 +7,7 @@ from sklearn.neighbors import NearestNeighbors
 
 
 # %%
-data_path = r"data/"
+data_path = r"../data/"
 
 nhanes_demo = pd.read_sas(f"{data_path}DEMO_L.xpt")
 nhanes_diet1 = pd.read_sas(f"{data_path}DR1IFF_L.xpt")
