@@ -1,0 +1,10 @@
+name: me_for_privacy
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - pandas
+  - matplotlib
+  - ipykernel
+  - scikit-learn
+prefix: C:\Users\robin\miniconda3\envs\me_for_privacy
