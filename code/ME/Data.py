@@ -73,14 +73,19 @@ class Data:
             # col[to_mask] = obs_with_error 
             col_error = col.copy() 
             col_error[to_mask] = obs_with_error
-        elif col.dtype == np.dtype("str"):
+        elif col.dtype.name == "category":
             # Categorical variable
-            pass
+            base_values = col.unique()
+            random_ints = np.random.random_integers(low = 0, high = len(base_values) - 1, size = len(col[to_mask]))
+
+            col_error = col.copy() 
+            col_error[to_mask] = [base_values[random_draw] for random_draw in random_ints]
         return col_error
     
-    def _apply_numerical_error(self, pobs, var):
-        pass
-
+    def drop_column(self, colname):
+        self.raw_data = self.raw_data.drop(colname, axis = 1)
+        self.masked_data = self.masked_data.drop(colname, axis = 1)
     
-
+    def filter_cluster_raw(self, cluster): 
+        return self.raw_data[self.raw_filter == cluster]
 
