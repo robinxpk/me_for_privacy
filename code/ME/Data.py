@@ -2,14 +2,17 @@ import numpy as np
 import pandas as pd
 from statsmodels.distributions.empirical_distribution import ECDF
 from scipy.stats import norm
+import matplotlib.pyplot as plt
 
 class Data:
     def __init__(
         self, raw_data, prob,
-        seed = 1234, error_factors = np.array([1])
+        seed = 1234, error_factors = np.array([1]),
+        error_type = "ePIT"
     ):
         self.seed = seed
         self.prob = prob
+        self.error_type = error_type
 
         self.raw_data = raw_data
         self.shape = raw_data.shape
@@ -37,9 +40,57 @@ class Data:
         return pd.DataFrame(error_vars, columns = self.raw_data.columns)
     
     def _mask_raw_data(self):
-        self.masked_data = self.raw_data.apply(self._mask_raw_column, axis = 0) # axis = 0 --> column wise
+        if self.error_type == "ePIT": 
+            # Error: var -> pobs -> std_norm + norm_error -> pobs -> inv-ePIT
+            self.masked_data = self.raw_data.apply(self._apply_ePIT_error, axis = 0) # axis = 0 --> column wise
+        elif self.error_type == "lognormal": 
+            # var * exp(normal) [multiplicative] bzw. log(var) + normal_error; ! Only applicable to numericals
+            self.masked_data = self.raw_data.apply(self._apply_lognormal_error, axis = 0)
+        elif self.error_type == "normal": 
+            # var + normal [additive]; ! Only applicable to numericals
+            self.masked_data = self.raw_data.apply(self._apply_normal_error, axis = 0)
 
-    def _mask_raw_column(self, col):
+    def _apply_lognormal_error(self, col):    
+        if col.dtype.name == "category":
+            return(col)
+        to_mask = self.mask_bool[col.name]
+        col_error = col.copy()
+
+        n_errors = sum(to_mask)
+        mu = np.zeros((n_errors,))
+        var = np.array(self.error_vars[col.name][to_mask])
+        # NOTE: Do not draw from np.random.multivariate_normal bc it creates the full covariance matrix which goes crazy in memory
+            # Instead, univariate normal allows vector of variances --> draws with different variances
+        norm_error = np.random.normal(loc = mu, scale = var, size = n_errors)
+        col_error[to_mask] = col[to_mask] * np.exp(norm_error)
+
+        return col_error
+
+    def _apply_normal_error(self, col):
+        if col.dtype.name == "category":
+            return(col)
+        rng = np.random.default_rng(self.seed)
+        to_mask = self.mask_bool[col.name]
+        col_error = col.copy()
+
+        n_errors = sum(to_mask)
+        mu = np.zeros((n_errors,))
+        var = np.array(self.error_vars[col.name][to_mask])
+
+        norm_error = np.random.normal(loc = mu, scale = var, size = n_errors)
+        col_error[to_mask] = col[to_mask] + norm_error
+
+        # If col does not contain negative values, assume non-negativity and replace negative values with non-negative ones
+            # Randomly draw from Lowest 5% in column
+        if col.min() >= 0: 
+            negative_cases = col_error[col_error < 0]
+            q05 = np.quantile(col, 0.05)       # 5% empirical quantile
+            smallest_5 = col[col <= q05] 
+            col_error[col_error < 0] = rng.choice(smallest_5, size = len(negative_cases), replace=True) 
+
+        return col_error
+
+    def _apply_ePIT_error(self, col):
         to_mask = self.mask_bool[col.name]
 
         if col.dtype == np.dtype("float64"):
@@ -88,4 +139,97 @@ class Data:
     
     def filter_cluster_raw(self, cluster): 
         return self.raw_data[self.raw_filter == cluster]
+
+    def viz_error_effect(self, varname):
+        if self.raw_data[varname].dtype.name == "category": 
+            fig, ax = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+            self.raw_data.plot(kind = "bar", ax = ax[0])
+            ax[0].set_title("Barplot raw data")
+            self.masked_data.plot(kind = "bar", ax = ax[1])
+            ax[1].set_title(f"Barplot WITH error [{self.error_type}]")
+            ax.legend()
+            ax.set_xlabel(varname)
+            plt.tight_layout()
+            plt.show()
+        elif self.raw_data[varname].dtype == np.dtype("float64"):
+            ax = self.raw_data[varname].plot.kde(label="Raw Data")          
+            self.masked_data[varname].plot.kde(ax=ax, label="Data w/Error", style = "--")  
+            ax.set_title(f'KDE w/ and w/o error [{self.error_type}]')
+            ax.set_xlabel(varname)
+            ax.legend()
+            plt.show() 
+
+    def ePIT_viz(self, varname): 
+        if self.error_type != "ePIT": 
+            return
+
+        # 1) Data and empirical CDF / PIT
+        s = self.raw_data[varname].dropna()
+        x = s.values
+        n = len(x)
+
+        # sorted x and empirical CDF (for plotting)
+        x_sorted = np.sort(x)
+        F_emp = np.arange(1, n + 1) / (n + 1)   # ECDF values
+
+        # PIT values for each observation (Uniform(0,1) approx.)
+        u = s.rank(method="average").values / (n + 1)
+
+        # transform U ~ approx Uniform(0,1) to Z ~ approx N(0,1)
+        z = norm.ppf(u)
+
+        fig, axes = plt.subplots(2, 2, figsize=(10, 6))
+
+        # --- top left: histogram of F̂_X(X) (≈ Uniform(0,1)) ---
+        axes[0, 0].hist(u, bins=20, density=True, orientation="horizontal" )
+        axes[0, 0].set_title(r"hist of $\hat F_X(X)$")
+        axes[0, 0].set_xlabel("u")
+        axes[0, 0].set_ylabel("density")
+
+        # --- top right: empirical CDF ---
+        axes[0, 1].plot(x_sorted, F_emp)
+        axes[0, 1].set_title(r"Empirical CDF $\hat F_X(x)$")
+        axes[0, 1].set_xlabel("x")
+        axes[0, 1].set_ylabel("F")
+
+        # --- bottom right: empirical density via KDE ---
+        s.plot.kde(ax=axes[1, 1])
+        axes[1, 1].set_title(r"Empirical density $\hat f_X(x)$")
+        axes[1, 1].set_xlabel("x")
+        axes[1, 1].set_ylabel("density")
+
+        # --- bottom left: empty (to mimic the L-shape layout) ---
+        axes[1, 0].axis("off")
+
+        plt.tight_layout()
+        plt.show()
+
+        fig2, axes2 = plt.subplots(2, 2, figsize=(10, 6))
+
+        # --- top left: histogram of U (same PIT as before) ---
+        axes2[0, 0].hist(u, bins=20, density=True, orientation="horizontal" )
+        axes2[0, 0].set_title(r"hist of $U$ (PIT)")
+        axes2[0, 0].set_xlabel("u")
+        axes2[0, 0].set_ylabel("density")
+
+        # --- top right: standard normal CDF Φ(z) ---
+        z_grid = np.linspace(-4, 4, 400)
+        axes2[0, 1].plot(z_grid, norm.cdf(z_grid))
+        axes2[0, 1].set_title(r"Standard normal CDF $\Phi(z)$")
+        axes2[0, 1].set_xlabel("z")
+        axes2[0, 1].set_ylabel("Φ(z)")
+
+        # --- bottom right: standard normal density φ(z), with histogram of Z ---
+        axes2[1, 1].hist(z, bins=20, density=True, alpha=0.5, label="empirical Z")
+        axes2[1, 1].plot(z_grid, norm.pdf(z_grid), label="N(0,1) pdf")
+        axes2[1, 1].set_title(r"Standard normal density $\varphi(z)$")
+        axes2[1, 1].set_xlabel("z")
+        axes2[1, 1].set_ylabel("density")
+        axes2[1, 1].legend()
+
+        # --- bottom left: empty again ---
+        axes2[1, 0].axis("off")
+
+        plt.tight_layout()
+        plt.show()
 

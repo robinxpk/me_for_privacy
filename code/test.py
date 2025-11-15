@@ -28,15 +28,21 @@ data_path = r"../data/"
 
 nhanes_demo = pd.read_sas(f"{data_path}DEMO_L.xpt")
 nhanes_diet1 = pd.read_sas(f"{data_path}DR1IFF_L.xpt")
+nhanes_body_measures = pd.read_sas(f"{data_path}BMX_L.xpt")
 key = "SEQN"
 
 # make sure key has the same dtype
 nhanes_demo[key] = nhanes_demo[key].astype("int64")
 nhanes_diet1[key] = nhanes_diet1[key].astype("int64")
+nhanes_body_measures[key] = nhanes_body_measures[key].astype("int64")
 
 # join side-by-side (each food item gets the person’s demographics)
 nhanes_raw = pd.merge(
     nhanes_demo, nhanes_diet1, on=key, how="inner", validate="one_to_many"
+)
+
+nhanes_raw = pd.merge(
+    nhanes_raw, nhanes_body_measures, on=key, how="inner", validate="many_to_many"
 )
 
 # %%
@@ -52,7 +58,8 @@ nhanes_raw = nhanes_raw.loc[:, [
         "DR1ISUGR", # float: Sugar (gm)
         "DR1IFIBE", # float: Fibre (gm)
         "DR1ITFAT", # float: Fat (gm)
-        "DR1ICHOL" # float: Cholesterol (mg)
+        "DR1ICHOL", # float: Cholesterol (mg)
+        "BMXHT" # float: height (cm)
     ]
 ]
 nhanes_raw = nhanes_raw.dropna(ignore_index=True) 
@@ -99,7 +106,50 @@ nhanes_raw.DR1LANG = nhanes_raw.DR1LANG.astype("category")
 # 3) Re-Fit DBScan and display same clusters
 
 # %%
-nhanes = Data(raw_data = nhanes_raw.dropna(ignore_index = True), prob = 0.5, error_factors = np.array([0.5]))
+nhanes_epit = Data(
+    raw_data = nhanes_raw.dropna(ignore_index = True), 
+    prob = 0.5, 
+    error_factors = np.array([2]), 
+    error_type="ePIT"
+)
+
+nhanes_normal= Data(
+    raw_data = nhanes_raw.dropna(ignore_index = True), 
+    prob = 0.5, 
+    error_factors = np.array([50]), 
+    error_type="normal"
+)
+
+nhanes_lognormal = Data(
+    raw_data = nhanes_raw.dropna(ignore_index = True), 
+    prob = 0.5, 
+    error_factors = np.array([0.3]), 
+    error_type="lognormal"
+)
+
+# %% 
+# Visualize effect of error
+nhanes_epit.viz_error_effect("BMXHT")
+nhanes_normal.viz_error_effect("BMXHT")
+nhanes_lognormal.viz_error_effect("BMXHT")
+
+# nhanes_epit.viz_error_effect("DR1LANG")
+# nhanes_lognormal.viz_error_effect("DR1LANG")
+# nhanes_normal.viz_error_effect("DR1LANG")
+
+# %% 
+# Visualize ePIT 
+nhanes_epit.ePIT_viz("BMXHT")
+
+
+# %%
+# Run Clustering
+nhanes = Data(
+    raw_data = nhanes_raw.dropna(ignore_index = True), 
+    prob = 0.5, 
+    error_factors = np.array([0.5]), 
+    error_type="ePIT"
+)
 # %%
 # Scatter plot of variables in data
 # ! Run only if not too many variables contained in df
@@ -128,7 +178,7 @@ distance_measure = "euclidean"
 minpts = nhanes.raw_data.shape[1] * 2
 k_start = minpts - 1
 plot_k_distance_graph(nhanes.raw_data, k=k_start)
-epsilon = 10
+epsilon = 1
 # do DBSCAN  ####
 dbscan = DBSCAN(
     eps=epsilon,
@@ -147,7 +197,7 @@ nhanes.raw_data["cluster"] = clusters_raw
 minpts = nhanes.masked_data.shape[1] * 2
 k_start = minpts - 1
 plot_k_distance_graph(nhanes.masked_data, k=k_start)
-epsilon = 5
+epsilon = 1
 # do DBSCAN  ####
 dbscan = DBSCAN(
     eps=epsilon,
@@ -166,7 +216,7 @@ nhanes.masked_data["cluster"] = clusters_masked
 # visuaraw_lize results (again, how for high dims?)
 plotted_y = "DR1ITFAT"
 plotted_x = "DR1ICHOL"
-cluster_id = 5
+cluster_id = 1
 
 
 plt.figure(figsize=(10, 6))
@@ -198,4 +248,40 @@ plt.title("DBSCAN Clustering Results - Added Error")
 plt.xlabel(plotted_x)
 plt.ylabel(plotted_y)
 plt.show()
+
+
+# %%
+### Visuals 
+
+# Ratio of data (All vs Ratio p)
+# -> Mention equivalence of uncertainty expressed in variance for numericals
+# Suggestions: error on all vars bc then no "true value" in data (ePIT more complex; could error into PIT there)
+
+# Additive Error
+# + Easy Bayes 
+# + Nice Cluster interpretation
+# - Selective handling of values (e.g. non-negatives) and Outliers (e.g. higher additive error in outliers cases)
+# x_new = x + error
+
+# Multiplicative Error
+# Handles Outliers
+# Easy Bayes
+# x_new = x * exp(error)
+
+# ePIT Error
+# + No issues regarding Outliers
+# + No issues with values
+# - Bayes? 
+# x_ij= f(x_ij|x_j) 
+
+# Error on categorical data: 
+# Suggest: Random draws of emprical distribution to not allow inference due to prior knowledge e.g. based on paper content (--> Here, error ratio p vs all error is relvant) 
+
+# num: DR1IPROT
+# cat: DR1LANG
+
+# OPTIONAL: Cluster results dependent on error
+
+
+
 
