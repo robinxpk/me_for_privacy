@@ -1,7 +1,5 @@
 # %%
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 from ME.Data import Data
@@ -24,7 +22,7 @@ def plot_k_distance_graph(x, k):
     plt.show()
 
 # %%
-data_path = r"../data/"
+data_path = r"./data/"
 
 nhanes_demo = pd.read_sas(f"{data_path}DEMO_L.xpt")
 nhanes_diet1 = pd.read_sas(f"{data_path}DR1IFF_L.xpt")
