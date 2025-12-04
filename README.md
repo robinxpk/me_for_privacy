@@ -24,13 +24,13 @@ Plots: Selektierte Cluster - vorher u. nachher
 
 ## Virtual Environment Setup (Conda)
 
-Based on the given `.yaml`-file, create a conda environment using: 
+Based on the given `.yml`-file, create a conda environment using: 
 
-`conda env create -f environment.yaml`
+`conda env create -f environment.yml`
 
-In case one wants to update the `.yaml` file, create a new file using: 
+In case one wants to update the `.yml` file, create a new file using: 
 
-`conda env export > environment.yaml`
+`conda env export --from-history > environment.yml` 
 
 Some useful prompts: 
 
@@ -71,5 +71,9 @@ Body Measures: [here](https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Comp
 ### The third International Stroke Trial [IST-3]
 [IST-3](https://datashare.ed.ac.uk/handle/10283/1931)
 
+
+### [[UMAP]]-clustering ###
+
+Check [this](https://umap-learn.readthedocs.io/en/latest/) out. 
 
 

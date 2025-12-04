@@ -2,3 +2,4 @@ data/*.xpt
 # Do not track vim-specific files
 *.swp
 *.*~
+*vimspector*
