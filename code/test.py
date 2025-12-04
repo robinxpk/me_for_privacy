@@ -1,8 +1,10 @@
 # %%
 import pandas as pd
+import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 from ME.Data import Data
+from ME.functions import *
 
 def plot_k_distance_graph(x, k):
     # choose epsilon for DBScan 
@@ -22,7 +24,7 @@ def plot_k_distance_graph(x, k):
     plt.show()
 
 # %%
-data_path = r"./data/"
+data_path = r"../data/"
 
 nhanes_demo = pd.read_sas(f"{data_path}DEMO_L.xpt")
 nhanes_diet1 = pd.read_sas(f"{data_path}DR1IFF_L.xpt")
@@ -125,11 +127,20 @@ nhanes_lognormal = Data(
     error_type="lognormal"
 )
 
+nhanes_berkson = Data(
+    raw_data = nhanes_raw.dropna(ignore_index = True),
+    prob = 1, 
+    error_type = "berkson", 
+    cluster_based = True
+)
+
+
 # %% 
 # Visualize effect of error
 nhanes_epit.viz_error_effect("BMXHT")
 nhanes_normal.viz_error_effect("BMXHT")
 nhanes_lognormal.viz_error_effect("BMXHT")
+nhanes_berkson.viz_error_effect("BMXHT")
 
 # nhanes_epit.viz_error_effect("DR1LANG")
 # nhanes_lognormal.viz_error_effect("DR1LANG")

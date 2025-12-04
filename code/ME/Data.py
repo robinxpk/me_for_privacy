@@ -1,25 +1,31 @@
 import numpy as np
+import umap
 import pandas as pd
+import matplotlib.pyplot as plt
+import sklearn
 from statsmodels.distributions.empirical_distribution import ECDF
 from scipy.stats import norm
-import matplotlib.pyplot as plt
-
+from sklearn.preprocessing import StandardScaler
+        
 class Data:
     def __init__(
         self, raw_data, prob,
         seed = 1234, error_factors = np.array([1]),
-        error_type = "ePIT"
+        error_type = "ePIT", cluster_based = False
     ):
         self.seed = seed
         self.prob = prob
         self.error_type = error_type
 
         self.raw_data = raw_data
+        self.n = len(self.raw_data.index)
         self.shape = raw_data.shape
         self.mask_bool = self._create_mask_bool()
         self.error_vars = self._draw_error_vars(error_factors = error_factors)
 
         self.masked_data = None
+        self.cluster_based = cluster_based
+        self.prior_cluster = None
         # Fill masked data:
         self._mask_raw_data()
 
@@ -49,6 +55,51 @@ class Data:
         elif self.error_type == "normal": 
             # var + normal [additive]; ! Only applicable to numericals
             self.masked_data = self.raw_data.apply(self._apply_normal_error, axis = 0)
+        elif self.error_type == "berkson": 
+            self.cluster_based = True
+            self._assign_prior_cluster(type = "k-means")
+            self.masked_data = self.raw_data.apply(self._apply_berkson_error, axis = 0)
+    
+    def _apply_berkson_error(self, col): 
+        if col.dtype.name == "category":
+            return(col)
+        to_mask = self.mask_bool[col.name]
+        col_error = col.copy()
+        
+        cluster_idx = list(self.prior_cluster.names).index(col.name)
+        col_error[to_mask] = self.prior_cluster.cluster_centers_[self.prior_cluster.labels_[to_mask], cluster_idx]
+
+        return col_error
+    
+    def _assign_prior_cluster(self, type = "umap", n_neighbors = 100):
+        """
+        For cluster based error, fit the cluster on the original data. This will then be used to apply the error-structure.
+        """
+        if type != "k-means": 
+            raise ValueError(f"The prior cluster type is not 'k-means-constrained'[was ", type,"instead]")
+        working_df = self.raw_data.select_dtypes(include="number")
+         
+        reducer = umap.UMAP(n_neighbors = n_neighbors)
+        # Standardize data to not have the result depend on scale of the variable
+        scaled_data = StandardScaler().fit_transform(working_df)
+        prior_embedding = reducer.fit_transform(scaled_data)
+        
+        plt.figure()
+        plt.scatter(prior_embedding[:, 0], prior_embedding[:, 1], alpha = 0.1)
+        plt.title('UMAP projection of the raw data', fontsize=18)
+        plt.savefig(f"BerksonError_UmapOnRawData_neighbors{n_neighbors}.png")
+
+        k_means = sklearn.cluster.KMeans(n_clusters = (self.n // n_neighbors) + 1)
+        k_means.fit(np.array(working_df))
+        self.prior_cluster = k_means
+        self.prior_cluster.names = working_df.columns
+
+        plt.figure()
+        plt.scatter(prior_embedding[:, 0], prior_embedding[:, 1], alpha = 0.3, c = k_means.labels_)
+        plt.title('UMAP projection of the raw data', fontsize=18)
+        plt.savefig(f"BerksonError_LabelledUmapOnRawData_neighbors{n_neighbors}.png")
+
+
 
     def _apply_lognormal_error(self, col):    
         if col.dtype.name == "category":
@@ -232,4 +283,4 @@ class Data:
 
         plt.tight_layout()
         plt.show()
-
+    
