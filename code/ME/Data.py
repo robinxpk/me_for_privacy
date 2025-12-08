@@ -3,6 +3,7 @@ import umap
 import pandas as pd
 import matplotlib.pyplot as plt
 import sklearn
+from ME.Cluster import Cluster
 from statsmodels.distributions.empirical_distribution import ECDF
 from scipy.stats import norm
 from sklearn.preprocessing import StandardScaler
@@ -25,9 +26,10 @@ class Data:
 
         self.masked_data = None
         self.cluster_based = cluster_based
-        self.prior_cluster = None
+        self.prior_cluster = self._assign_cluster(data = self.raw_data, type = "k-means")
         # Fill masked data:
         self._mask_raw_data()
+        self.post_cluster = self._assign_cluster(data = self.masked_data, type = "k-means")
 
     def _create_mask_bool(self):
         n, p = self.shape
@@ -57,7 +59,6 @@ class Data:
             self.masked_data = self.raw_data.apply(self._apply_normal_error, axis = 0)
         elif self.error_type == "berkson": 
             self.cluster_based = True
-            self._assign_prior_cluster(type = "k-means")
             self.masked_data = self.raw_data.apply(self._apply_berkson_error, axis = 0)
     
     def _apply_berkson_error(self, col): 
@@ -67,37 +68,37 @@ class Data:
         col_error = col.copy()
         
         cluster_idx = list(self.prior_cluster.names).index(col.name)
-        col_error[to_mask] = self.prior_cluster.cluster_centers_[self.prior_cluster.labels_[to_mask], cluster_idx]
+        col_error[to_mask] = self.prior_cluster.fit.cluster_centers_[self.prior_cluster.fit.labels_[to_mask], cluster_idx]
 
         return col_error
     
-    def _assign_prior_cluster(self, type = "umap", n_neighbors = 100):
+    def _assign_cluster(self, data,  type = "k-means", n_neighbors = 100):
         """
         For cluster based error, fit the cluster on the original data. This will then be used to apply the error-structure.
         """
         if type != "k-means": 
             raise ValueError(f"The prior cluster type is not 'k-means-constrained'[was ", type,"instead]")
-        working_df = self.raw_data.select_dtypes(include="number")
+        working_df = data.select_dtypes(include="number")
          
-        reducer = umap.UMAP(n_neighbors = n_neighbors)
-        # Standardize data to not have the result depend on scale of the variable
-        scaled_data = StandardScaler().fit_transform(working_df)
-        prior_embedding = reducer.fit_transform(scaled_data)
+        # reducer = umap.UMAP(n_neighbors = n_neighbors)
+        # # Standardize data to not have the result depend on scale of the variable
+        # scaled_data = StandardScaler().fit_transform(working_df)
+        # prior_embedding = reducer.fit_transform(scaled_data)
         
-        plt.figure()
-        plt.scatter(prior_embedding[:, 0], prior_embedding[:, 1], alpha = 0.1)
-        plt.title('UMAP projection of the raw data', fontsize=18)
-        plt.savefig(f"BerksonError_UmapOnRawData_neighbors{n_neighbors}.png")
+        # plt.figure()
+        # plt.scatter(prior_embedding[:, 0], prior_embedding[:, 1], alpha = 0.1)
+        # plt.title('UMAP projection of the raw data', fontsize=18)
+        # plt.savefig(f"BerksonError_UmapOnRawData_neighbors{n_neighbors}.png")
 
         k_means = sklearn.cluster.KMeans(n_clusters = (self.n // n_neighbors) + 1)
         k_means.fit(np.array(working_df))
-        self.prior_cluster = k_means
-        self.prior_cluster.names = working_df.columns
+        # k_means.names = working_df.columns
+        return(Cluster(fit = k_means, data = working_df))
 
-        plt.figure()
-        plt.scatter(prior_embedding[:, 0], prior_embedding[:, 1], alpha = 0.3, c = k_means.labels_)
-        plt.title('UMAP projection of the raw data', fontsize=18)
-        plt.savefig(f"BerksonError_LabelledUmapOnRawData_neighbors{n_neighbors}.png")
+        # plt.figure()
+        # plt.scatter(prior_embedding[:, 0], prior_embedding[:, 1], alpha = 0.3, c = k_means.labels_)
+        # plt.title('UMAP projection of the raw data', fontsize=18)
+        # plt.savefig(f"BerksonError_LabelledUmapOnRawData_neighbors{n_neighbors}.png")
 
 
 
@@ -284,3 +285,5 @@ class Data:
         plt.tight_layout()
         plt.show()
     
+    def compare_cluster(): 
+        pass
