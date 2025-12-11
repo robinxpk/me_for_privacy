@@ -10,13 +10,15 @@ from sklearn.preprocessing import StandardScaler
         
 class Data:
     def __init__(
-        self, raw_data, prob,
+        self, name, raw_data, prob,
         seed = 1234, error_factors = np.array([1]),
-        error_type = "ePIT", cluster_based = False
+        error_type = "ePIT", cluster_based = False, cols_excluded_from_error = []
     ):
+        self.name = name
         self.seed = seed
         self.prob = prob
         self.error_type = error_type
+        self.excluded_cols = cols_excluded_from_error
 
         self.raw_data = raw_data
         self.n = len(self.raw_data.index)
@@ -35,7 +37,9 @@ class Data:
         n, p = self.shape
         rng = np.random.default_rng(self.seed)
         bools_matrix = rng.random((n, p)) < self.prob
-        return(pd.DataFrame(bools_matrix, columns = self.raw_data.columns))
+        bools_df = pd.DataFrame(bools_matrix, columns = self.raw_data.columns)
+        bools_df.loc[:, self.excluded_cols] = False
+        return(bools_df)
     
     def _draw_error_vars(
             self,
@@ -68,6 +72,8 @@ class Data:
         col_error = col.copy()
         
         cluster_idx = list(self.prior_cluster.names).index(col.name)
+        if col.dtype  == "int64":
+            self.prior_cluster.fit.cluster_centers_[self.prior_cluster.fit.labels_[to_mask], cluster_idx] = self.prior_cluster.fit.cluster_centers_[self.prior_cluster.fit.labels_[to_mask], cluster_idx].astype("int64")
         col_error[to_mask] = self.prior_cluster.fit.cluster_centers_[self.prior_cluster.fit.labels_[to_mask], cluster_idx]
 
         return col_error
@@ -114,7 +120,10 @@ class Data:
         # NOTE: Do not draw from np.random.multivariate_normal bc it creates the full covariance matrix which goes crazy in memory
             # Instead, univariate normal allows vector of variances --> draws with different variances
         norm_error = np.random.normal(loc = mu, scale = var, size = n_errors)
-        col_error[to_mask] = col[to_mask] * np.exp(norm_error)
+        error = col[to_mask] * np.exp(norm_error)
+        if col.dtype  == "int64":
+            error = np.floor(error) 
+        col_error[to_mask] = error
 
         return col_error
 
@@ -130,7 +139,11 @@ class Data:
         var = np.array(self.error_vars[col.name][to_mask])
 
         norm_error = np.random.normal(loc = mu, scale = var, size = n_errors)
-        col_error[to_mask] = col[to_mask] + norm_error
+
+        error = col[to_mask] + norm_error
+        if col.dtype  == "int64":
+            error = np.floor(error) 
+        col_error[to_mask] = error
 
         # If col does not contain negative values, assume non-negativity and replace negative values with non-negative ones
             # Randomly draw from Lowest 5% in column
@@ -144,6 +157,7 @@ class Data:
 
     def _apply_ePIT_error(self, col):
         to_mask = self.mask_bool[col.name]
+        col_error = col.copy() 
 
         if col.dtype == np.dtype("float64"):
             # Numerical variable
@@ -174,14 +188,12 @@ class Data:
 
             # Replace values with values + error
             # col[to_mask] = obs_with_error 
-            col_error = col.copy() 
             col_error[to_mask] = obs_with_error
         elif col.dtype.name == "category":
             # Categorical variable
             base_values = col.unique()
             random_ints = np.random.random_integers(low = 0, high = len(base_values) - 1, size = len(col[to_mask]))
 
-            col_error = col.copy() 
             col_error[to_mask] = [base_values[random_draw] for random_draw in random_ints]
         return col_error
     

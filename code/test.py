@@ -109,7 +109,7 @@ nhanes_raw.DR1LANG = nhanes_raw.DR1LANG.astype("category")
 # %%
 nhanes_berkson = Data(
     raw_data = nhanes_raw.dropna(ignore_index = True),
-    prob = 0.5, 
+    prob = 1, 
     error_type = "berkson", 
     cluster_based = True
 )
@@ -145,7 +145,7 @@ nhanes_normal.post_cluster.evaluate()
 # %%
 nhanes_lognormal = Data(
     raw_data = nhanes_raw.dropna(ignore_index = True), 
-    prob = 0.5, 
+    prob = 1, 
     error_factors = np.array([0.3]), 
     error_type="lognormal"
 )
@@ -288,3 +288,5 @@ nhanes_lognormal.post_cluster.evaluate()
 
 
 
+
+# %%
