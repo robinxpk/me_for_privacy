@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import statsmodels.formula.api as smf
 from lifelines import CoxPHFitter
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
@@ -40,6 +41,45 @@ class CoxPHList:
                 self.cph_ref
             )
         )
+
+class FitList: 
+    # TODO: All fits should be inherited from this object to not be redundant.... 
+    def __init__(self): 
+        pass
+# %%
+class LMList():
+    def __init__(self, true_data, formula):
+        # Check how super works. Do not remember right now...
+        # super.__init__(self)
+        self.data = true_data
+        self.formula = formula
+        self.lm_ref = LM(data = self.data.raw_data, formula = self.formula)
+
+        self.fits = Fits()
+        self.add_fit("reference", self.data)
+
+    def add_fit(self, name, data):
+        self.fits.add_new_fit(
+            Fit(
+                name, 
+                data,
+                LM(data.masked_data, formula = self.formula), 
+                self.lm_ref
+            )
+        )
+
+# %%
+class LM: 
+    # Wrapper to make lm-fit quack like a duck (cph-fit)
+    def __init__(self, data, formula): 
+            self.data = data
+            self.formula = formula
+            self.fit = self._fit(self.data, self.formula)
+            self.params_ = self.fit.params
+
+    def _fit(self, data, form = "LBXT4 ~ RIDAGEYR + bmi + LBXTC"): 
+        return smf.ols(form, data=data).fit()
+
 
 class Fits: 
     def __init__(self):
@@ -268,6 +308,27 @@ print(cphs_small.fits.table_all_estimates(table_name = "\n## p-values",   table_
 print(cphs_small.fits.table_all_estimates(table_name = "\n## Bias",       table_as_markdown=True, getter = lambda mdl_fit: mdl_fit.bias))
 
 
+# %%
+# Linear model fit 
+lms = LMList(voe_true, formula = "LBXT4 ~ RIDAGEYR + bmi + LBXTC")
+lms.add_fit(voe_berkson.name, voe_berkson)
+lms.add_fit(voe_epit.name, voe_epit)
+lms.add_fit(voe_normal.name, voe_normal)
+lms.add_fit(voe_lognormal.name, voe_lognormal)
 
+# %%
+print(lms.fits.table_all_estimates(table_name = "\n## Estimates", table_as_markdown = True))
+# ! marker_in_boxplot uses name specified in table
+lms.fits.boxplot_all_estimates(plot_name = "Estimates", marker_in_boxplot="reference")
+# %%
+print(lms.fits.table_all_estimates(table_name = "\n## Bias",       table_as_markdown=True, getter = lambda mdl_fit: mdl_fit.bias))
+lms.fits.boxplot_all_estimates(plot_name = "Bias", getter = lambda mdl_fit: mdl_fit.bias, marker_in_boxplot="berkson", dot_color="b")
+# lm_ref = fit_lm(voe_true.raw_data)
+# lm_ref.params
+# lm_berkson = fit_lm(voe_berkson.masked_data)
+# lm_berkson.params
+# lm_epit = fit_lm(voe_epit.masked_data)
+# lm_normal = fit_lm(voe_normal.masked_data)
+# lm_lognormal =  fit_lm(voe_lognormal.masked_data)
 
 # %%

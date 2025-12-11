@@ -111,6 +111,8 @@ class Data:
     def _apply_lognormal_error(self, col):    
         if col.dtype.name == "category":
             return(col)
+        np.random.seed(self.seed)        
+
         to_mask = self.mask_bool[col.name]
         col_error = col.copy()
 
@@ -138,6 +140,7 @@ class Data:
         mu = np.zeros((n_errors,))
         var = np.array(self.error_vars[col.name][to_mask])
 
+        np.random.seed(self.seed)        
         norm_error = np.random.normal(loc = mu, scale = var, size = n_errors)
 
         error = col[to_mask] + norm_error
