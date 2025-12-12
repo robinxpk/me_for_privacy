@@ -156,44 +156,44 @@ factor_vars = (
     # -- Survival Indicator
     "MORTSTAT",
     # -- Data set indicator
-    "SDDSRVYR",              
+    # "SDDSRVYR",              
     # -- Exam sample weight (combined)
-    "WTMEC4YR",
+    "WTMEC4YR"
     # -- Follow-up time in month
     # i.e. this is "time" variable
     # "PERMTH_EXM",            
     # -- socioecnomic status level
-    "SES_LEVEL",
+    # "SES_LEVEL",
     # -- Age at screening
     # "RIDAGEYR",              
     # -- Is sex male
-    "male",
+    # "male",
     # -- Area of where subject lives
-    "area",                  
+    # "area",                  
     # -- Serum total thyroxine (mycro gram / dL)
     # "LBXT4",
     # -- Factor if current or past smoking
-    "current_past_smoking",  
+    # "current_past_smoking",  
     # -- Indicator for coronary artery disease
-    "any_cad",
+    # "any_cad",
     # -- Indicator that any family member has had heart attack or angina
-    "any_family_cad",        
+    # "any_family_cad",        
     # -- Indicator if any cancer self report
-    "any_cancer_self_report",
+    # "any_cancer_self_report",
     # -- BMI of subject
     # "bmi",                   
     # -- Indicator if any hyptertension
-    "any_ht",
+    # "any_ht",
     # -- Indicator if patient has diabetes
-    "any_diabetes",          
+    # "any_diabetes",          
     # -- Categorical level of education
-    "education",
+    # "education",
     # -- ethnicity of subject
-    "RIDRETH1",              
+    # "RIDRETH1",              
     # -- Ranking of physical activity
-    "physical_activity",
+    # "physical_activity",
     # -- Indicator for heavy drinking
-    "drink_five_per_day"
+    # "drink_five_per_day"
     # -- Serum total cholesterol mg/dL
     # "LBXTC"         
 )
@@ -275,18 +275,34 @@ voe_lognormal.viz_error_effect("LBXT4")
 
 
 # %% Fit models
-cphs = CoxPHList(voe_true, "MORTSTAT", "PERMTH_EXM")
-cphs.add_fit(voe_berkson.name, voe_berkson)
-cphs.add_fit(voe_epit.name, voe_epit)
-cphs.add_fit(voe_normal.name, voe_normal)
-cphs.add_fit(voe_lognormal.name, voe_lognormal)
+try:
+    cphs = CoxPHList(voe_true, "MORTSTAT", "PERMTH_EXM")
+    cphs.add_fit(voe_berkson.name, voe_berkson)
+    cphs.add_fit(voe_epit.name, voe_epit)
+    cphs.add_fit(voe_normal.name, voe_normal)
+    cphs.add_fit(voe_lognormal.name, voe_lognormal)
+except: 
+    print("Could not fit large cphs")
 # %%
-subcols = ["MORTSTAT", "PERMTH_EXM", "RIDAGEYR", "LBXT4", "bmi", "LBXTC"]
+subcols = [
+    # Event indicator and event time 
+    "MORTSTAT", "PERMTH_EXM", 
+    # Covariates
+    "RIDAGEYR", "LBXT4", "bmi", 'DR1TKCAL'
+    # Cannot add any of these covariables bc convergence issue due to correlation
+    # 'LBXCOT',  'LBXGLU', 'LBXHGB', 'BPXPLS',"LBXTC",
+]
+
+
 cphs_small = CoxPHList(voe_true, "MORTSTAT", "PERMTH_EXM", covariables = subcols)
 cphs_small.add_fit(voe_berkson.name, voe_berkson)
 cphs_small.add_fit(voe_epit.name, voe_epit)
 cphs_small.add_fit(voe_normal.name, voe_normal)
 cphs_small.add_fit(voe_lognormal.name, voe_lognormal)
+
+# %%
+# Define fit-list to run tables and plots on 
+cphs = cphs_small
 
 # %% 
 print(cphs.fits.table_all_estimates(table_name = "\n## Estimates", table_as_markdown = True))
@@ -301,16 +317,10 @@ cphs.fits.boxplot_all_estimates(plot_name = "p-values", getter = lambda mdl_fit:
 # %%
 print(cphs.fits.table_all_estimates(table_name = "\n## Bias",       table_as_markdown=True, getter = lambda mdl_fit: mdl_fit.bias))
 cphs.fits.boxplot_all_estimates(plot_name = "Bias", getter = lambda mdl_fit: mdl_fit.bias, marker_in_boxplot="berkson", dot_color="b")
-# %%
-print(cphs_small.fits.table_all_estimates(table_name = "\n## Estimates", table_as_markdown = True))
-print(cphs_small.fits.table_all_estimates(table_name = "\n## Std. Error", table_as_markdown=True, getter = lambda mdl_fit: mdl_fit.fit.standard_errors_))
-print(cphs_small.fits.table_all_estimates(table_name = "\n## p-values",   table_as_markdown=True, getter = lambda mdl_fit: mdl_fit.fit.summary["p"]))
-print(cphs_small.fits.table_all_estimates(table_name = "\n## Bias",       table_as_markdown=True, getter = lambda mdl_fit: mdl_fit.bias))
-
 
 # %%
 # Linear model fit 
-lms = LMList(voe_true, formula = "LBXT4 ~ RIDAGEYR + bmi + LBXTC")
+lms = LMList(voe_true, formula = "LBXT4 ~ RIDAGEYR + bmi + DR1TKCAL")
 lms.add_fit(voe_berkson.name, voe_berkson)
 lms.add_fit(voe_epit.name, voe_epit)
 lms.add_fit(voe_normal.name, voe_normal)

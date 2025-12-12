@@ -2,7 +2,27 @@
 load("../data/nhanes9904_VoE.Rdata")
 
 # Following copy-pasta from: voe/vibration/vibration_start.R
-dat <- mainTab[, c('MORTSTAT', 'SDDSRVYR', 'WTMEC4YR', 'PERMTH_EXM', 'SES_LEVEL', 'RIDAGEYR', 'male', 'area', 'LBXT4', 'current_past_smoking', 'any_cad', 'any_family_cad', 'any_cancer_self_report', 'bmi', 'any_ht', 'any_diabetes', 'education', 'RIDRETH1', 'physical_activity', 'drink_five_per_day', 'LBXTC' )]
+selected_cols = c(
+    "MORTSTAT", # Event indivator for survival
+    "PERMTH_EXM", # Time (in month) for survival
+    "RIDAGEYR", #  – age in years
+    "bmi", # – body mass index
+    "LBXTC", # – total cholesterol (mg/dL)
+    "BPXPLS", # – pulse / heart rate
+    "LBXCOT", # – serum cotinine (tobacco exposure)
+    "DR1TKCAL", # – total energy intake, kcal from 24h recall
+    "LBXGLU", # – plasma glucose
+    "LBXHGB", # – hemoglobin
+    # "number_close_friends", # – social variable (count)
+    "house_age", #  – age of the house
+    'LBXT4',
+    'bmi',
+    "WTMEC4YR", # Weights, but also used to filter NAs
+    'LBXTC' 
+) |>
+    unique()
+
+dat <- mainTab[, selected_cols]
 
 ## base model is Cadmium (LBXBCD), age, sex; cluster(area) is to account for the correlated observations in NHANES
 basemodel <- Surv(PERMTH_EXM, MORTSTAT) ~ scale(I(log(LBXT4+.1))) + RIDAGEYR + male + cluster(area) 
@@ -61,12 +81,17 @@ factor_vars = c(
     # "LBXTC"         
 )
 # dat[, factor_vars] = as.character(dat[, factor_vars])
+# 
+
+# Check colinerity: 
+GGally::ggpairs(dat)
+dddat 
 
 write.table(
-    dat, 
-    "../data/voe_data.csv", 
-    sep = ";", 
-    row.names = FALSE, 
+    dat,
+    "../data/voe_data.csv",
+    sep = ";",
+    row.names = FALSE,
     dec = "."
 )
 
