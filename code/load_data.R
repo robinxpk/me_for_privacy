@@ -85,7 +85,7 @@ factor_vars = c(
 
 # Check colinerity: 
 GGally::ggpairs(dat)
-dddat 
+dat
 
 write.table(
     dat,
