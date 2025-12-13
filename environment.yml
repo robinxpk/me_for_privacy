@@ -2,14 +2,16 @@ name: me_for_privacy
 channels:
   - defaults
 dependencies:
-  - matplotlib
-  - scikit-learn
   - ipykernel
+  - matplotlib
   - pandas
+  - scikit-learn
+  - lifelines
+  - python=3.12
   - qtconsole
   - statsmodels
-  - python=3.12
-  - umap-learn
-  - lifelines
   - tabulate
-prefix: C:\Users\robin\miniconda3\envs\me_for_privacy
+  - umap-learn
+  - jinja2
+  - seaborn
+prefix: /Users/lona/anaconda3/envs/me_for_privacy
