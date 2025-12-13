@@ -121,6 +121,54 @@ n_simulations = 100
 
 clean_voe_data = voe_data.dropna(ignore_index = True)
 
+# %% visualization of error effects
+viz_epit = Data(
+    name = "viz_epit",
+    raw_data = clean_voe_data,
+    prob = 1,
+    error_factors = np.array([epit_sd]),
+    error_type = "ePIT",
+    seed = simulation_seed,
+)
+
+viz_normal = Data(
+    name = "viz_normal",
+    raw_data = clean_voe_data,
+    prob = 1,
+    error_factors = np.array([normal_sd]),
+    error_type = "normal",
+    seed = simulation_seed,
+)
+
+viz_lognormal = Data(
+    name = "viz_lognormal",
+    raw_data = clean_voe_data,
+    prob = 1,
+    error_factors = np.array([lognormal_sd]),
+    error_type = "lognormal",
+    seed = simulation_seed,
+)
+
+viz_datasets = {
+    "berkson": voe_berkson,
+    "ePIT": viz_epit,
+    "normal": viz_normal,
+    "lognormal": viz_lognormal,
+}
+
+for label, dataset in viz_datasets.items():
+    print(f"KDE for BMI with and without {label} error")
+    fig, ax = plt.subplots()
+    dataset.raw_data["bmi"].plot.kde(ax=ax, label="Raw Data")
+    dataset.masked_data["bmi"].plot.kde(ax=ax, label="Data w/Error", linestyle="--")
+    ax.set_title(f'KDE w/ and w/o error [{label}]')
+    ax.set_xlabel("bmi")
+    ax.legend()
+    fig.savefig(f"../images/viz_error_effect_bmi_{label}.png", dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+# %%
 simulation_error_configs = [
     {
         "label": "ePIT",

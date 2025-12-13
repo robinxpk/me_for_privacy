@@ -207,24 +207,29 @@ class Data:
     def filter_cluster_raw(self, cluster): 
         return self.raw_data[self.raw_filter == cluster]
 
-    def viz_error_effect(self, varname):
+    def viz_error_effect(self, varname, show=True):
         if self.raw_data[varname].dtype.name == "category": 
             fig, ax = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
             self.raw_data.plot(kind = "bar", ax = ax[0])
             ax[0].set_title("Barplot raw data")
             self.masked_data.plot(kind = "bar", ax = ax[1])
             ax[1].set_title(f"Barplot WITH error [{self.error_type}]")
-            ax.legend()
-            ax.set_xlabel(varname)
-            plt.tight_layout()
-            plt.show()
-        elif self.raw_data[varname].dtype == np.dtype("float64"):
-            ax = self.raw_data[varname].plot.kde(label="Raw Data")          
-            self.masked_data[varname].plot.kde(ax=ax, label="Data w/Error", style = "--")  
+            ax[1].legend()
+            ax[1].set_xlabel(varname)
+            fig.tight_layout()
+            if show:
+                plt.show()
+            return fig
+        elif np.issubdtype(self.raw_data[varname].dtype, np.number):
+            fig, ax = plt.subplots()
+            self.raw_data[varname].plot.kde(ax=ax, label="Raw Data")
+            self.masked_data[varname].plot.kde(ax=ax, label="Data w/Error", linestyle="--")
             ax.set_title(f'KDE w/ and w/o error [{self.error_type}]')
             ax.set_xlabel(varname)
             ax.legend()
-            plt.show() 
+            if show:
+                plt.show()
+            return fig
 
     def ePIT_viz(self, varname): 
         if self.error_type != "ePIT": 
