@@ -429,11 +429,11 @@ g_lm_facets.fig.savefig("../images/lm_rel_bias_facets.png", dpi=300, bbox_inches
 # %%
 # Aggregated boxplots
 plt.figure()
-plot_rel_bias_aggregated(cox_estimates_long, "Cox relative bias (aggregated over all parameter estimates)")
+plot_rel_bias_aggregated(cox_estimates_long, "Cox relative bias (all parameter estimates)")
 plt.savefig("../images/cox_rel_bias_aggregated.png", dpi=300, bbox_inches="tight")
 
 plt.figure()
-plot_rel_bias_aggregated(lm_estimates_long, "LM relative bias (aggregated over all parameter estimates)")
+plot_rel_bias_aggregated(lm_estimates_long, "LM relative bias (all parameter estimates)")
 plt.savefig("../images/lm_rel_bias_aggregated.png", dpi=300, bbox_inches="tight")
 
 
