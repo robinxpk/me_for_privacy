@@ -90,13 +90,14 @@ voe_berkson = Data(
     cols_excluded_from_error = ["PERMTH_EXM"]
 )
 # %%
-voe_berkson.viz_error_effect("LBXT4")
+voe_berkson.viz_error_effect("DR1TKCAL")
+voe_berkson.viz_error_effect("LBXTC")
 # voe_berkson.prior_cluster.evaluate()
 # voe_berkson.post_cluster.evaluate()
 
 
 # %%50
-epit_sd = 2
+epit_sd = 1
 voe_epit = Data(
     name = f"epit_{epit_sd}", 
     raw_data = voe_data.dropna(ignore_index = True), 
@@ -105,13 +106,13 @@ voe_epit = Data(
     error_type="ePIT"
 )
 # %%
-voe_epit.ePIT_viz("LBXT4")
-voe_epit.viz_error_effect("LBXT4")
+# print(voe_epit.ePIT_viz("DR1TKCAL"))
+print(voe_epit.viz_error_effect("DR1TKCAL"))
 # voe_epit.prior_cluster.evaluate()
 # voe_epit.post_cluster.evaluate()
 
 # %%
-normal_sd = 10
+normal_sd = 10 ** 3 # NOTE: Depends on scale, of course. e.g. calories reach up to 4k
 voe_normal= Data(
     name = f"normal_{normal_sd}", 
     raw_data = voe_data.dropna(ignore_index = True), 
@@ -120,7 +121,7 @@ voe_normal= Data(
     error_type="normal"
 )
 # %%
-voe_normal.viz_error_effect("LBXT4")
+voe_normal.viz_error_effect("DR1TKCAL")
 # voe_normal.prior_cluster.evaluate()
 # voe_normal.post_cluster.evaluate()
 
@@ -134,7 +135,7 @@ voe_lognormal = Data(
     error_type="lognormal"
 )
 # %%
-voe_lognormal.viz_error_effect("LBXT4")
+voe_lognormal.viz_error_effect("DR1TKCAL")
 # voe_lognormal.prior_cluster.evaluate()
 # voe_lognormal.post_cluster.evaluate()
 
