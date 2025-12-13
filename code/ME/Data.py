@@ -16,7 +16,7 @@ class Data:
     ):
         self.name = name
         self.seed = seed
-        self.prob = prob
+        self.prob = prob  # proportion of observation that get an error
         self.error_type = error_type
         self.excluded_cols = cols_excluded_from_error
 
