@@ -1,26 +1,5 @@
 # Measurement for Privacy
 
-## TODO
-_Alle_ Variablen Errorterm - unabhängig von socially desired value - sonst kein Schutz gegen identifizierbar
-
-0) DBScan result for a visible number of clusters prior to error 
-1) Boolean pro variable ziehen (50%?)
-2) If TRUE: Fehler 
-    Hierzu: 
-    - Numerisch: ePIT auf Variable und Variable in Normalverteilung transformieren
-        Normalen Fehlerterm aufaddieren: 
-        Fehlervarianz randomly ziehen
-        Grund für random draw: Kein gesondertes Behandeln der Outlier
-            sonder es kann durch eine sehr hohe Fehlervarianz auch zu Outliern kommen. So erhalten Outlier nicht nur möglicherweise einen Fehlerterm, sondern bestehende Outlier werden durch mögliche neue Outlier "gemasked". 
-            Natürlich kann es auch dazu kommen, dass Outlier noch weiter in die Outlier-Richtung gezogen werden. Hier machen wir uns aber erstmal keine Sorgen, weil das durch gutes Masking (hoffentlich) weniger relevant ist.
-    - Kategorisch: Zufälliges Ziehen aus...
-        ... möglichen Kategorien (Uniform) --> Enthält keine Informationen bzgl der empirischen Verteilung der Kategorien
-        ... empirische Verteilung der Kategorien --> Möglicherweise kann so die empirische Verteilung beibehalten werden, allerdings weiß ich nicht, ob das das Signal nicht weird macht? Für uniform Fehler scheint es mir einfacher zu korrigieren
-        Nicht sicher was davon besser wäre?
-3) Re-Fit DBScan and display same clusters
-
-measure for LDP? 
-Plots: Selektierte Cluster - vorher u. nachher
 
 ## Virtual Environment Setup (Conda)
 
@@ -64,7 +43,7 @@ Unique because it combines:
 Focused on "Demographic Variables and Sample Weights" from August 2021-August 2023 for now, downloaded [here](https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx?Cycle=2021-2023).
 Find Doc-Files after selecting the data set of choice.
 
-Also, for Cox-models fitted during brainstorming, we used the data from [this](https://doi.org/10.1093/ije/dyaa164) paper which can be found [here](https://github.com/chiragjp/voe) (file: `nhanes9904_VoE.Rdata`)
+Also, for Cox-models fitted during brainstorming, we used the data from [this](https://doi.org/10.1093/ije/dyaa164) paper. Its github can be found [here](https://github.com/chiragjp/voe) (file: `nhanes9904_VoE.Rdata`).
 
 Dietary1 dataset: [here](https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Component=Dietary&Cycle=2021-2023)
 
@@ -73,9 +52,128 @@ Body Measures: [here](https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Comp
 ### The third International Stroke Trial [IST-3]
 [IST-3](https://datashare.ed.ac.uk/handle/10283/1931)
 
+## Errors ##
 
-### [[UMAP]]-clustering ###
+This section presents the errors we added to the data. The uncertainty introduced by each error is evaluated using the uncertainty evaluation formula (UEF) defined as 
+$$
+\begin{align}
+    \frac{1}{2}.
+\end{align}
+$$
+We aim to have each error introduce the same level of uncertainty such that results are comparable among error types. 
+The following briefly introduces each error and gives a mathematical definition. 
 
-Check [this](https://umap-learn.readthedocs.io/en/latest/) out. 
+In the following, we assume a total of $K$ variables where $j \in \{ 1, ..., K\}$ denotes the $j$-th variable. Each variable is observed a $n$ times with $i = 1, ..., n$ denoting the $i$-th observation.
+
+*Note: An error should only increase the variance and not introduce any bias!* 
+
+### Additive normal error ###
+To each variable, we just add a normally distributed random variable with an expected value of $0$. 
+The variance of the normal distribution affects the UEF. 
+
+#### Mathematical definition ####
+$$
+\begin{align}
+\begin{split}
+    \tilde{x}_{ji} = x_{ji} + \epsilon_{i} \\
+    \text{where } \epsilon_{j} \overset{iid.}{\sim} N(0, \sigma^{(add.)}_{\epsilon}) 
+\end{split}
+\end{align}
+$$
+
+### Multiplicate log-normal error ###
+Every variable is multiplied by a log-normally distributed random variable. 
+
+#### Mathematical definition ####
+$$
+\begin{align}
+\begin{split}
+    \tilde{x}_{j} = x_{j} \cdot \epsilon_{j} \\
+    \text{where } \log(\epsilon_{j}) \overset{iid.}{\sim}N(0, \sigma^{(mult.)}_{\epsilon})
+\end{split}
+\end{align}
+$$
+
+### ePIT error ###
+For this error, we make use of the empirical probability integral transform (ePIT) bzw. the empirical CDF function. @okhrinBasicElemts2017, p. 195 defines this as 
+$$
+\begin{align}
+    \hat{F}_{j}(x) = \frac{1}{n+1} \sum_{k=1}^{n}{I(x_{jk} \leq x)}
+\end{align}
+$$
+For each $x_{ji} \in \{x_{j1}, ..., x_{jn}\}$, we define $p_{ji} := \hat{F}_{j}(x_{ji})$. Due to the properties of the (empirical) CDF, we know that $p_{ji} \overset{iid.}{\sim} \text{Uniform}(0, 1)$. Note that the empirical CDF basically assigns normalized ranks. Thus, the following uses the term "rank" somewhat interchangeable with the empirical CDF value as it is pretty much the same. 
+
+*Note: $\hat{F}_{j}$ is **not** continuous! For every $x \in (x_{j(k)}, x_{j(k+1)})$, it is constant ($x_{j(k)}$ denotes the $k$-th ordered observation.)*
+
+From here, we can add any type of error from any distribution by 
+1) transforming $p_{ij}$ using a quantile function of any distribution which would yield $Q_{}(p_{ij})$ to then follow this distribution where $Q$ denotes the quantile function of this chosen distribution
+2) We add an error onto $Q(p_{ij})$ of any kind, i.e. of any distribution
+3) We retransform $Q(p_{ij})$ using the *known* CDF bzw. inverse of $Q$ to again obtain a noisy $p_{ij}$. 
+4) From noisy $p_{ij}$ we can then go back to the original scale using $\hat{F}^{-1}_{j}$ from the above equation.
+
+Of course, we could skip steps if we would just add noise on the uniform variable $p_{ij}$. Maybe this would be more efficient and / or easier to model? 
+
+For now, we used the std. normal quantile function, added a std. normal error and then re-transformed the variable to its original scale using the empirical CDF. 
+
+Overall, this approach has the upside of never introducing new values. Instead, all noisy data points are still real data points. 
+Essentially: </br>
+This type of error build rank-value pairs. Then takes every observation and potentially (that is, most likely) assigns it a new rank. 
+When all observation has been assigned a new rank, each rank is the value assigned which was saved in the rank-value pair. 
+Rephrasing it like this seems to simplify things: It basically is an error on the assigned rank. 
+
+#### Mathematical definition ####
+$$
+\begin{align}
+\begin{split}
+    (1)\ & p_{ji} = \hat{F}_{j}(x_{ji})\\
+    (2)\ & z_{ji} = \Phi^{-1}(p_{ji}) \\
+    (3)\ & \tilde{z}_{ji} = z_{ji} + \epsilon_{i}  \text{ where } \epsilon_{i} \overset{iid.}{\sim} N(0, 1)\\
+    (4)\ & \tilde{p}_{ji} = \Phi(\tilde{z}_{ji}) \\
+    (5) \ & \tilde{x}_{ji} = \hat{F}^{-1}_{j}(\tilde{p}_{ji})
+\end{split}
+\end{align}
+$$
+
+In short: 
+$$
+\begin{align}
+    \tilde{x}_{ji} = \hat{F}^{-1}_{j}(
+        \Phi\{ 
+            \Phi^{-1}[
+                \hat{F}_{j}(x_{ji})
+            ] + \epsilon_{i}
+       \} 
+    )
+\end{align}
+$$
+
+This expression can be generalized, I think: 
+$$
+\begin{align}
+    \tilde{x}_{ji} = \hat{F}^{-1}_{j}(
+        G(
+                \hat{F}_{j}(x_{ji})
+        )
+    )
+\end{align}
+$$
+where $G(.)$ is just any function that (potentially) assigns a new rank to $x_{ji}$ and $\hat{F}$ (re-)transform from rank to (observed) value. 
+In the above case, 
+$$
+\begin{align}
+    G(y) = \Phi(\Phi^{-1}(y + \epsilon)) \text{ where } \epsilon \overset{iid.}{\sim}N(0, 1)
+\end{align}
+$$
+
+*Note: I expect that, depending on the added error, the distribution of $\tilde{x}_{ji}$ flattens compared to the original distribution. But because values cannot exceed the largest observed value, I expect a peaky behaviour towards the edges. Let's see!* :)
+
+
+### Berkson error ###
+
+
+
+
+
+
 
 
