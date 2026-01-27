@@ -75,17 +75,6 @@ The variance of the normal distribution affects the UEF.
 $$
 \begin{align}
 \begin{split}
-    \tilde{x}_{ji} = x_{ji} + \epsilon_{i} \\
-    \text{where } \epsilon_{j} \overset{iid.}{\sim} N(0, \sigma^{(add.)}_{\epsilon}) 
-\end{split}
-\end{align}
-$$
-
-<!-- Is the notation correct? I assume we choose a different error for each observation so that would result in -->
-
-$$
-\begin{align}
-\begin{split}
     \tilde{x}_{ji} = x_{ji} + \epsilon_{ji} \\
     \text{where } \epsilon_{ji} \overset{iid.}{\sim} N(0, \sigma^{(add.)}_{\epsilon, j}) 
 \end{split}
@@ -96,16 +85,6 @@ $$
 Every variable is multiplied by a log-normally distributed random variable. 
 
 #### Mathematical definition
-$$
-\begin{align}
-\begin{split}
-    \tilde{x}_{j} = x_{j} \cdot \epsilon_{j} \\
-    \text{where } \log(\epsilon_{j}) \overset{iid.}{\sim}N(0, \sigma^{(mult.)}_{\epsilon})
-\end{split}
-\end{align}
-$$
-
-<!-- same problem right? -->
 $$
 \begin{align}
 \begin{split}
@@ -156,7 +135,6 @@ $$
 $$
 
 In short: 
-<!-- brutal lol -->
 $$
 \begin{align}
     \tilde{x}_{ji} = \hat{F}^{-1}_{j}(
@@ -181,13 +159,7 @@ $$
 $$
 where $G(.)$ is just any function that (potentially) assigns a new rank to $x_{ji}$ and $\hat{F}$ (re-)transform from rank to (observed) value. 
 In the above case, 
-<!-- $$
-\begin{align}
-    G(y) = \Phi(\Phi^{-1}(y + \epsilon)) \text{ where } \epsilon \overset{iid.}{\sim}N(0, 1)
-\end{align}
-$$ -->
 
-<!-- I think the equation is / was wrong because $\Phi^{-1} (x + \epsilon) \neq \Phi^-1(x) + \epsilon -->
 $$
 \begin{align}
     G(y) = \Phi(\Phi^{-1}(y) + \epsilon) \text{ where } \epsilon \overset{iid.}{\sim}N(0, 1)
