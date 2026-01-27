@@ -32,6 +32,17 @@ class Data:
         # Fill masked data:
         self._mask_raw_data()
         self.post_cluster = self._assign_cluster(data = self.masked_data, type = "k-means")
+        self.error_evaluation = self.evaluate_errors()
+
+        self.true_var = self.raw_data.select_dtypes(include="number").var()
+        self.masked_var = self.masked_data.select_dtypes(include="number").var()
+
+    def evaluate_errors(self):    
+        sqd_diffs = (self.raw_data.select_dtypes(include="number") - self.masked_data.select_dtypes(include="number")) ** 2
+        mse = sqd_diffs.mean()
+        #normalized mse 
+        nmse = mse / self.raw_data.select_dtypes(include="number").var()
+        return(nmse)
 
     def _create_mask_bool(self):
         n, p = self.shape
