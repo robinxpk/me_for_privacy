@@ -52,7 +52,7 @@ Body Measures: [here](https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Comp
 ### The third International Stroke Trial [IST-3]
 [IST-3](https://datashare.ed.ac.uk/handle/10283/1931)
 
-## Errors ##
+## Errors
 
 This section presents the errors we added to the data. The uncertainty introduced by each error is evaluated using the uncertainty evaluation formula (UEF) defined as 
 $$
@@ -67,11 +67,11 @@ In the following, we assume a total of $K$ variables where $j \in \{ 1, ..., K\}
 
 *Note: An error should only increase the variance and not introduce any bias!* 
 
-### Additive normal error ###
+### Additive normal error 
 To each variable, we just add a normally distributed random variable with an expected value of $0$. 
 The variance of the normal distribution affects the UEF. 
 
-#### Mathematical definition ####
+#### Mathematical definition
 $$
 \begin{align}
 \begin{split}
@@ -81,10 +81,21 @@ $$
 \end{align}
 $$
 
-### Multiplicate log-normal error ###
+<!-- Is the notation correct? I assume we choose a different error for each observation so that would result in -->
+
+$$
+\begin{align}
+\begin{split}
+    \tilde{x}_{ji} = x_{ji} + \epsilon_{ji} \\
+    \text{where } \epsilon_{ji} \overset{iid.}{\sim} N(0, \sigma^{(add.)}_{\epsilon, j}) 
+\end{split}
+\end{align}
+$$
+
+### Multiplicate log-normal error
 Every variable is multiplied by a log-normally distributed random variable. 
 
-#### Mathematical definition ####
+#### Mathematical definition
 $$
 \begin{align}
 \begin{split}
@@ -94,7 +105,17 @@ $$
 \end{align}
 $$
 
-### ePIT error ###
+<!-- same problem right? -->
+$$
+\begin{align}
+\begin{split}
+    \tilde{x}_{ji} = x_{ji} \cdot \epsilon_{ji} \\
+    \text{where } \log(\epsilon_{ji}) \overset{iid.}{\sim}N(0, \sigma^{(mult.)}_{\epsilon, j})
+\end{split}
+\end{align}
+$$
+
+### ePIT error
 For this error, we make use of the empirical probability integral transform (ePIT) bzw. the empirical CDF function. @okhrinBasicElemts2017, p. 195 defines this as 
 $$
 \begin{align}
@@ -121,7 +142,7 @@ This type of error build rank-value pairs. Then takes every observation and pote
 When all observation has been assigned a new rank, each rank is the value assigned which was saved in the rank-value pair. 
 Rephrasing it like this seems to simplify things: It basically is an error on the assigned rank. 
 
-#### Mathematical definition ####
+#### Mathematical definition
 $$
 \begin{align}
 \begin{split}
@@ -135,6 +156,7 @@ $$
 $$
 
 In short: 
+<!-- brutal lol -->
 $$
 \begin{align}
     \tilde{x}_{ji} = \hat{F}^{-1}_{j}(
@@ -159,11 +181,20 @@ $$
 $$
 where $G(.)$ is just any function that (potentially) assigns a new rank to $x_{ji}$ and $\hat{F}$ (re-)transform from rank to (observed) value. 
 In the above case, 
-$$
+<!-- $$
 \begin{align}
     G(y) = \Phi(\Phi^{-1}(y + \epsilon)) \text{ where } \epsilon \overset{iid.}{\sim}N(0, 1)
 \end{align}
+$$ -->
+
+<!-- I think the equation is / was wrong because $\Phi^{-1} (x + \epsilon) \neq \Phi^-1(x) + \epsilon -->
 $$
+\begin{align}
+    G(y) = \Phi(\Phi^{-1}(y) + \epsilon) \text{ where } \epsilon \overset{iid.}{\sim}N(0, 1)
+\end{align}
+$$
+
+<!-- Also ich glaube, es funktioniert nicht so schön, wie du das aufgeschrieben hast -->
 
 *Note: I expect that, depending on the added error, the distribution of $\tilde{x}_{ji}$ flattens compared to the original distribution. But because values cannot exceed the largest observed value, I expect a peaky behaviour towards the edges. Let's see!* :)
 
