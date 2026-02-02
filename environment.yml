@@ -1,17 +1,19 @@
-name: me_for_privacy
+name: base
 channels:
   - defaults
 dependencies:
-  - ipykernel
-  - matplotlib
-  - pandas
-  - scikit-learn
-  - lifelines
-  - python=3.12
-  - qtconsole
-  - statsmodels
-  - tabulate
-  - umap-learn
-  - jinja2
-  - seaborn
-prefix: /Users/lona/anaconda3/envs/me_for_privacy
+  - python=3.13
+  - conda=25.9.1
+  - setuptools
+  - pip
+  - wheel
+  - conda-anaconda-telemetry[version='>=0.3.0']
+  - conda-anaconda-tos[version='>=0.2.2']
+  - conda-content-trust
+  - conda-libmamba-solver
+  - menuinst
+  - anaconda_prompt
+  - anaconda_powershell_prompt
+  - anaconda-anon-usage
+  - anaconda-auth
+prefix: C:\Users\robin\miniconda3

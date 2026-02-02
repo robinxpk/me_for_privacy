@@ -11,6 +11,7 @@ from ME.Cluster import Cluster
 from ME.functions import *
 from ME.ModelLists import *
 import seaborn as sns
+import jax
 
 # %%
 data_path = r"../data/"
@@ -80,7 +81,6 @@ plot_df_epit = pd.DataFrame(records_epit).T.sort_index().assign(origin = "epit")
 # %%
 records_lognormal= dict()
 # Use KCAL variance to play around with:
-ref_sd = voe_true.raw_data["DR1TKCAL"].std()
 for lognormal_sd in np.arange(0.01, 0.5, 0.1):
     voe_lognormal = Data(
         name = f"lognormal_{lognormal_sd}", 
@@ -113,3 +113,15 @@ def plot_records(df, col):
     ax.axhline(df.loc[df["origin"] == "berkson", col].iloc[0], linestyle = "--", color = "gray")
     plt.show()
 plot_records(plot_df, "DR1TKCAL")
+
+# %%
+### Model fitting
+# - linear model 
+# LBXT4 ~ RIDAGEYR + bmi + DR1TKCAL
+# Use: 
+    # LBXT4 ~ norm(mu, sigma)
+    # mu = alpha + b1*RIDAGEYR + b2*bmi + b3*DR1TKCAL
+# cox model (later)
+
+## Reference 
+# 

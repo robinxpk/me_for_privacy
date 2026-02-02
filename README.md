@@ -160,6 +160,9 @@ $$
 where $G(.)$ is just any function that (potentially) assigns a new rank to $x_{ji}$ and $\hat{F}$ (re-)transform from rank to (observed) value. 
 In the above case, 
 
+
+
+
 $$
 \begin{align}
     G(y) = \Phi(\Phi^{-1}(y) + \epsilon) \text{ where } \epsilon \overset{iid.}{\sim}N(0, 1)
@@ -169,7 +172,6 @@ $$
 <!-- Also ich glaube, es funktioniert nicht so schön, wie du das aufgeschrieben hast -->
 
 *Note: I expect that, depending on the added error, the distribution of $\tilde{x}_{ji}$ flattens compared to the original distribution. But because values cannot exceed the largest observed value, I expect a peaky behaviour towards the edges. Let's see!* :)
-
 
 ### Berkson error ###
 
