@@ -128,8 +128,8 @@ class Data:
         col_error = col.copy()
 
         n_errors = sum(to_mask)
-        mu = np.zeros((n_errors,))
         var = np.array(self.error_vars[col.name][to_mask])
+        mu = - var / 2
         # NOTE: Do not draw from np.random.multivariate_normal bc it creates the full covariance matrix which goes crazy in memory
             # Instead, univariate normal allows vector of variances --> draws with different variances
         norm_error = np.random.normal(loc = mu, scale = var, size = n_errors)

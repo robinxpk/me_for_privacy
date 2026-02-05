@@ -52,6 +52,91 @@ Body Measures: [here](https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Comp
 ### The third International Stroke Trial [IST-3]
 [IST-3](https://datashare.ed.ac.uk/handle/10283/1931)
 
+## Modelle ##
+### Reference Model ###
+Here, $x_{j}$ refers to observed("true") values. I.e. without introducing any ME.
+1. Likelihood 
+$$
+\begin{align}
+    y_{lbxt4} &\sim N(\mu, \sigma^2)\\
+    \mu &= \beta_0 + \beta_{age} x_{age} + \beta_{bmi} x_{bmi} + \beta_{kcal} x_{kcal}
+\end{align}
+$$
+2. Priors
+$$
+\begin{align}
+    \beta_j &\overset{iid.}{\sim} N(0, b^2) \text{ with given }b \\
+    \sigma^2 &\sim Ga(c, d) \text{ with given }c, d
+\end{align}
+$$
+
+Posterior: 
+$$
+\begin{align}
+    \log(p(\beta, \sigma^2\mid \boldsymbol{y})) &= -\frac{n}{2}log(\sigma^2) - \frac{1}{2\sigma^2}\sum_{i=1}^{n}{(y_i - \boldsymbol{x}_i^T \boldsymbol{\beta})^2} \\
+    &- \frac{1}{2b^2} \sum_{j=1}^{p}{\beta_{j}^2} + (c-1) \log(\sigma^2) - d \sigma^2 + C
+\end{align} 
+$$
+
+### Naive Model ###
+Also reference model to see how well correction worked (Model using the erroneous 
+$$
+\begin{align}
+    y_{lbxt4} \sim N(\mu, \sigma^2)\\
+    \mu = \alpha + \beta_{age} \tilde{x}_{age} + \beta_{bmi} \tilde{x}_{bmi} + \beta_{kcal} \tilde{x}_{kcal}
+\end{align}
+$$
+
+### ME correction ###
+
+#### Disease Model ####
+Einfaches lineares Modell (Verbinden von exposure und covariates, $p(y|x)$): 
+$$
+\begin{align}
+    y_{lbxt4} \sim N(\mu, \sigma^2)\\
+    \mu = \alpha + \beta_{age} x_{age} + \beta_{bmi} x_{bmi} + \beta_{kcal} x_{kcal}
+\end{align}
+$$
+#### Measurement Model ####
+Verbindung: Beobachteter Wert und Fehler. 
+
+For now: Normaler, additiver Fehler:
+$$
+\begin{align}
+    \tilde{x}_{ij} = x_{ij} + \epsilon_{ij} \text{ with } \epsilon \sim N(0, \sigma^2_{\epsilon})
+\end{align}
+$$
+
+#### Exposure Model ####
+Distributional assumptions on latent variable $x$. 
+$$
+\begin{align}
+    x_{ij} \sim F_p
+\end{align}
+$$
+Assume a reasonable distribution for now (with hyper priors?) because always assuming simple normal dsitribution would misspecify which may lead to bias.
+
+**Solutions:**
+- Use empirical density of original variable (where "original" refers to the variable without error). 
+    - ! Ursprünglich hier bezieht sich auf _ohne Fehler_ $\rightarrow$ Ist Angabe der Dichte der wahren Werte problematisch?; Aber erstmal wahre Verteilung nutzen; Wie kann JAX damit umgehen? 
+    - Danach: 
+        - Wie problematisch ist eine Angabe der Verteilung wahrer Daten? (Diese mag sowieso verfügbar sein, zB aufgrund früherer prublications)
+        - Wie problematisch ist eine mis-specification? 
+
+#### Likelihood ####
+$$
+\begin{align}
+    p(\alpha, \boldsymbol{\beta}, x | y, \tilde{x}) \propto p(\alpha)p(\boldsymbol{\beta})\prod_{i=1}^{n}{p(y_i|\alpha, \boldsymbol{\beta}, x_i) p(\tilde{x_i}|x_i, \sigma_\epsilon)}p(x_i)
+\end{align}
+$$
+
+Für priors: 
+1. Normalverteilung mit hoher Varianz 
+2. Simulation 
+
+! Prior predictive checks
+
+
 ## Errors
 
 This section presents the errors we added to the data. The uncertainty introduced by each error is evaluated using the uncertainty evaluation formula (UEF) defined as 
@@ -88,12 +173,13 @@ Every variable is multiplied by a log-normally distributed random variable.
 $$
 \begin{align}
 \begin{split}
-    \tilde{x}_{ji} = x_{ji} \cdot \epsilon_{ji} \\
-    \text{where } \log(\epsilon_{ji}) \overset{iid.}{\sim}N(0, \sigma^{(mult.)}_{\epsilon, j})
+    \tilde{x}_{ji} &= x_{ji} \cdot \epsilon_{ji} \\
+    &\text{where } \log(\epsilon_{ji}) \overset{iid.}{\sim}N\left(\mu_{(log)} , \sigma_{(log)}^2\right) \\ 
+    &\leftrightarrow \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left(\exp\left( \mu_{(log)}+ \frac{\sigma_{(log)}^2}{2} \right) , \left[\exp(\sigma^2)-1\right]\exp\left( 2 \mu_{(log)}+\sigma_{(log)} \right) \right).
 \end{split}
 \end{align}
 $$
-
+To have $\mathbb{E}_{ }\left[ \tilde{x}_{ij}\right] = x_{ij}$, choose $\mathbb{E}_{}\left[ \epsilon_{ij}\right] = 1$, i.e. $\mu_{(log)}= -\frac{\sigma^2_{(log)}}{2}$. 
 ### ePIT error
 For this error, we make use of the empirical probability integral transform (ePIT) bzw. the empirical CDF function. @okhrinBasicElemts2017, p. 195 defines this as 
 $$
@@ -121,7 +207,11 @@ This type of error build rank-value pairs. Then takes every observation and pote
 When all observation has been assigned a new rank, each rank is the value assigned which was saved in the rank-value pair. 
 Rephrasing it like this seems to simplify things: It basically is an error on the assigned rank. 
 
-#### Mathematical definition
+
+
+
+
+#### Mathematical Error Definition
 $$
 \begin{align}
 \begin{split}
@@ -173,12 +263,44 @@ $$
 
 *Note: I expect that, depending on the added error, the distribution of $\tilde{x}_{ji}$ flattens compared to the original distribution. But because values cannot exceed the largest observed value, I expect a peaky behaviour towards the edges. Let's see!* :)
 
+#### Posterior ####
+Instead of expressing the posterior in $x$ bzw. $\tilde{x}$, we express it in $z$ bzw. $\tilde{z}$ and re-transform out samples to $x$ because the NUTS sampler samples from the real line and we cannot be sure that $x$ allows all real values, but we know that $z$ does. 
+
+For this to work, we just use the empirical CDF and the inverse std. normal CDF to obtain $z$-values bzw. $\tilde{z}$ and add these to the design matrix such that we can use it as any covariate in our model. Given $\tilde{x}$ and the empirical CDF of $x$, this is reproducible for application after data sharing. 
+$$
+\begin{align}
+    p(\alpha, \boldsymbol{\beta}, z | y, \tilde{z}) \propto p(\alpha)p(\boldsymbol{\beta})\prod_{i=1}^{n}{p(y_i|\alpha, \boldsymbol{\beta}, z_i) p(\tilde{z_i}|z_i, \sigma_\epsilon)}p(z_i)
+\end{align}
+$$
+
+
+#### Continuous Rank Transformation ####
+To ease the application of **change of variable**, we thought of a continuous expression for the empirical CDF. 
+$$
+\begin{align}
+    p(x) &:= \hat{F}^{(cont)}(x) = \frac{1}{n+1} \left( 1 + \frac{n-1}{x_{max}-x_{min}}(x-x_{min}) \right) \in [0, 1)\\ 
+    \hat{F}'^{(cont)}(x) &= \frac{\delta \hat{F}^{(cont)}}{\delta x}(x) = \frac{n-1}{(n+1)(x_{max}-x_{min})}
+\end{align}
+$$
+**Derivation of functional Form**: 
+- Lowest value must be assigned rank $1$. 
+- Highest value must be assigned rank $n$.
+
+$\rightarrow$ continuous proxi of this discrete, i.e. *non-continuous*, empirical function is just the slope-triangle ("Steigungsdreieck"). 
+Additionally, we transform the continuous proxi into the interval of $[0, 1)$ following the logic of the common empirical CDF. 
+
+
+
 ### Berkson error ###
 
 
-
-
-
+#### Evaluation der Fehler ####
+- Verhalten der Fehler zu verschiedener Fehlervarianz
+$$
+\begin{align}
+    nMSE = \frac{(x_{true} - x_{error})^2}{\text{Var}(x_{true})}
+\end{align}
+$$
 
 
 

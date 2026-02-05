@@ -5,3 +5,6 @@ data/*.Rdata
 *.swp
 *.*~
 *vimspector*
+
+*pyc
+__pycache__/
