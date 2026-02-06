@@ -57,22 +57,35 @@ def post_log_dens(y, X, params, b, c, d):
 # %%
 # 1) Building the kernel
 p = X.shape[1] - 1
-step_size = 1e-9
-inverse_mass_matrix = jnp.array([0.01, 0.01, 0.01, 0.01, 0.01])
 ### --- blackjax.nuts expetcts a logdensity function that only depends on the parameter-values
 logdensity_fn = lambda params: post_log_dens(y, X, params, b = 10 ** 3, c = 1, d = 1)
-nuts = blackjax.nuts(logdensity_fn, step_size, inverse_mass_matrix)
+
 # %%
-# 2) Initialize the state 
+# Do NOT pick step_size and inver_se_mass_matrix by hand. Use the warmup function to find good values for these parameters! 
+step_size = 1e-9
+inverse_mass_matrix = jnp.array([0.01, 0.01, 0.01, 0.01, 0.01])
+nuts = blackjax.nuts(logdensity_fn, step_size, inverse_mass_matrix)
 initial_position = {
-    "beta": jnp.array([8.7, 0.002, -0.0004, 0.075]),
+    # "beta": jnp.array([8.7, 0.002, -0.0004, 0.075]),
+    "beta": jnp.array([0, 0., 0., 0.]),
     "log_sigma": jnp.log(jnp.std(y))
 }
+
+initial_state = nuts.init(initial_position)
+warmup = blackjax.window_adaptation(blackjax.nuts, logdensity_fn)
+rng_key, warmup_key, sample_key = jax.random.split(rng_key, 3)
+(state, parameters), _ = warmup.run(warmup_key, initial_position, num_steps = 1000)
+nuts = blackjax.nuts(logdensity_fn, **parameters)
+
+# %%
+# 2) Initialize the state 
+
 initial_state = nuts.init(initial_position)
 state = nuts.init(initial_position)
 # %%
 # 3) Iterate
 rng_key, init_key = jax.random.split(rng_key)
+
 
 ### Define function to take steps / draw samples
 def inference_loop(rng_key, kernel, initial_state, num_samples): 
@@ -90,6 +103,24 @@ def inference_loop(rng_key, kernel, initial_state, num_samples):
     
     return final_state, states, infos
 
+def inference_loop_multiple_chains(
+    rng_key, kernel, initial_state, num_samples, num_chains
+):
+
+    @jax.jit
+    def one_step(states, rng_key):
+        keys = jax.random.split(rng_key, num_chains)
+        states, _ = jax.vmap(kernel)(keys, states)
+        return states, states
+
+    keys = jax.random.split(rng_key, num_samples)
+    _, states = jax.lax.scan(one_step, initial_state, keys)
+
+    return states
+
+
+
+
 ### --- Run the Markov Chain
 rng_key, sample_key = jax.random.split(rng_key)
 final_state, states, infos = inference_loop(sample_key, nuts.step, initial_state, num_samples = 5_000)
@@ -105,7 +136,6 @@ for i, axi in enumerate(ax):
     axi.set_title(f"$\\beta_{i}$")
     axi.axvline(x=burnin, c="tab:red")
 plt.show()
-
 
 # %%
 ## -- Variance(beta) - log scale

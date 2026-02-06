@@ -42,80 +42,118 @@ def post_log_dens(y, X, params):
     beta_hyperpriors = - mean_beta ** 2 / (2 * 100 ** 2) - jnp.exp(log_sigma_sq_beta) + log_sigma_sq_beta
     return log_likelihood_term.sum() + beta_prior_term_1 + beta_prior_term_2 + beta_hyperpriors
 
+# %%
 # 0) Ensure variable types
 y = y.astype(jnp.float32)
 p = X.shape[1]
 
-# 1) Building the kernel
+# %%
+# Assume this function has been specified above.
+logdensity_fn = lambda params: post_log_dens(y, X, params)
+
+# Set parameters
+num_chains = 4
 step_size = 1e-3
 inverse_mass_matrix = jnp.ones(p + 2)
-### --- blackjax.nuts expetcts a logdensity function that only depends on the parameter-values
-logdensity_fn = lambda params: post_log_dens(y, X, params)
 nuts = blackjax.nuts(logdensity_fn, step_size, inverse_mass_matrix)
-
-# 2) Initialize the state 
-initial_position = {
-    "beta": jnp.ones(p),
-    "log_sigma_sq_beta": 1., 
-    "mean_beta": 1.
+initial_positions = {
+    "beta": jnp.ones((num_chains, p)),
+    "log_sigma_sq_beta": jnp.ones((num_chains, )) , 
+    "mean_beta": jnp.ones((num_chains, ))
 }
-initial_state = nuts.init(initial_position)
-state = nuts.init(initial_position)
 
-# 3) Iterate
-rng_key, init_key = jax.random.split(rng_key)
+# %% 
+### Create a windows adaptation object to repeatedly call it for each chain. 
+warmup = blackjax.window_adaptation(
+    blackjax.nuts,
+    logdensity_fn
+)
 
-### Define function to take steps / draw samples
-def inference_loop(rng_key, kernel, initial_state, num_samples): 
-    ### --- Use just in time compilation to improve runtime
+# %%
+### --- Inference Loop
+def inference_loop(rng_key, kernel, initial_state, num_samples):
+
     @jax.jit
-    def one_step(state, rng_key): 
-        new_state, info = kernel(rng_key, state)
-        ### --- jax.lax.scan expects two outputs: a carry (first) and an output (second).
-        ## 1. carry: Updated chain state that is input for next step.
-        ## 2. (per-iteration) output: Output that the scan-function stacks into the states object which is returned at the end.
-        return new_state, (new_state, info)
-    
+    def one_step(state, rng_key):
+        state, _ = kernel(rng_key, state)
+        return state, state
+
     keys = jax.random.split(rng_key, num_samples)
-    final_state, (states, infos) = jax.lax.scan(one_step, initial_state, keys)
+    _, states = jax.lax.scan(one_step, initial_state, keys)
+
+    return states
+
+# %%
+def adapt_and_sample_one_chain(rng_key, initial_position):
     
-    return final_state, states, infos
+    ## Key handling
+    adapt_key, sample_key = jax.random.split(rng_key)
+    
+    ## For a given initial position, get 
+    (state, parameters), info = warmup.run(
+        adapt_key,
+        initial_position,
+        num_steps = 1_000
+    )
+    nuts = blackjax.nuts(logdensity_fn, **parameters)
 
+    chain = inference_loop(
+        sample_key, 
+        nuts.step, 
+        state, 
+        num_samples = 5_000
+    )
+
+    return chain
+# %%
 ### --- Run the Markov Chain
-rng_key, sample_key = jax.random.split(rng_key)
-final_state, states, infos = inference_loop(sample_key, nuts.step, initial_state, num_samples = 5_000)
+rng_key = jax.random.split(rng_key, num_chains)
+res = jax.vmap(adapt_and_sample_one_chain)(rng_key, initial_positions)
 
-# 4) Visualize chain
-
+# %%
 ### --- Burn-in size
 burnin = 1_000
+
 ### --- Plot traces
 ## -- Beta coefficients
 fig, ax = plt.subplots(1, 3, figsize=(12, 2))
 for i, axi in enumerate(ax):
-    axi.plot(states.position["beta"][:, i])
+    axi.plot(res.position["beta"][1][:, i], alpha = 0.5)
+    axi.plot(res.position["beta"][2][:, i], alpha = 0.5)
+    axi.plot(res.position["beta"][3][:, i], alpha = 0.5)
+    axi.plot(res.position["beta"][4][:, i], alpha = 0.5)
     axi.set_title(f"$\\beta_{i}$")
     axi.axvline(x=burnin, c="tab:red")
 plt.show()
 ## -- Mean beta
-plt.plot(states.position["mean_beta"])
+plt.plot(res.position["mean_beta"][1])
+plt.plot(res.position["mean_beta"][2])
+plt.plot(res.position["mean_beta"][3])
+plt.plot(res.position["mean_beta"][4])
 plt.title("$\\mu_{\\beta}$")
 plt.axvline(x=burnin, c="tab:red")
 plt.show()
 ## -- Variance(beta) - log scale
-plt.plot(states.position["log_sigma_sq_beta"])
+plt.plot(res.position["log_sigma_sq_beta"][1])
+plt.plot(res.position["log_sigma_sq_beta"][2])
+plt.plot(res.position["log_sigma_sq_beta"][3])
+plt.plot(res.position["log_sigma_sq_beta"][4])
 plt.title("$\\log \\sigma^2_{\\beta}$")
 plt.axvline(x=burnin, c="tab:red")
 plt.show()
 ## -- Variance(beta) - variance scale
-plt.plot(jnp.exp(states.position["log_sigma_sq_beta"]))
+plt.plot(jnp.exp(res.position["log_sigma_sq_beta"][1]))
+plt.plot(jnp.exp(res.position["log_sigma_sq_beta"][2]))
+plt.plot(jnp.exp(res.position["log_sigma_sq_beta"][3]))
+plt.plot(jnp.exp(res.position["log_sigma_sq_beta"][4]))
 plt.title("$\\sigma^2_{\\beta}$")
 plt.axvline(x=burnin, c="tab:red")
 plt.show()
 
 # %%
 # 5) Predictive distribution
-chains = states.position["beta"][burnin:, :]
+chain = 1
+chains = res.position["beta"][chain][burnin:, :]
 nsamp, _ = chains.shape
 # Create a meshgrid
 X_no_intercep = X[:, 1:3]  # Remove intercept for plotting
