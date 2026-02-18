@@ -18,6 +18,7 @@ class BHM:
             response: str, 
             covariates: list,
             post_log_dens: callable,
+            hyperparams: dict,
             initial_positions: dict, 
             inverse_mass_matrix: jnp.ndarray, 
             rng_key: jax.random.PRNGKey,
@@ -46,7 +47,7 @@ class BHM:
         # Latent parameters of the model
         self.params = ""
         # Posterior log density function
-        self.logdensity_fn = lambda params: post_log_dens(self.y, self.X, params)
+        self.logdensity_fn = lambda params: post_log_dens(self.y, self.X, params, **hyperparams)
 
         # MCMC parameters
         self.initial_positions = initial_positions
@@ -56,7 +57,7 @@ class BHM:
         self.step_size = inital_step_size
         self.inverse_mass_matrix = inverse_mass_matrix
         self.sampler = init_sampler
-        self.warumup_steps = warmup_steps
+        self.warmup_steps = warmup_steps
         self.warmup = blackjax.window_adaptation(
             init_sampler,
             self.logdensity_fn
@@ -85,7 +86,7 @@ class BHM:
         (state, parameters), info = self.warmup.run(
             adapt_key,
             initial_position,
-            num_steps = self.warumup_steps
+            num_steps = self.warmup_steps
         )
         kernel = self.sampler(self.logdensity_fn, **parameters)
 
