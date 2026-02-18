@@ -102,3 +102,27 @@ class BHM:
     def fit(self): 
         rng_key = jax.random.split(self.rng_key, self.num_chains)
         self.res = jax.vmap(self._adapt_and_sample_one_chain)(rng_key, self.initial_positions)
+    
+    def viz_chains(self, param_name, _vector_dim = 1, title = ""):
+        if len(self.res.position[param_name].shape) != 2: _vector_dim = self.res.position[param_name].shape[2]
+        fig, ax = plt.subplots(1, _vector_dim, figsize=(12, 2))
+        # To esnure the matplotlib axes are always iterable, even if only one parameter is plotted
+        if _vector_dim == 1: ax = [ax]
+
+        for i, axi in enumerate(ax):
+            for chain in range(self.num_chains):
+                if _vector_dim == 1:
+                    axi.plot(self.res.position[param_name][chain], alpha = 0.5)
+                else:
+                    axi.plot(self.res.position[param_name][chain][:, i], alpha = 0.5)
+            axi.axvline(x = self.burnin, color = "red")
+            # Latex formatting 
+            # axi.set_title(f"${param_name}{i}$")
+            axi.set_title(f"{param_name}{i}")
+        plt.show()
+    
+    def mean_estimates(self, param_name): 
+        # TODO: This currently also includes the burnin. Should be removed using self.burnin attribute.
+        return jnp.array([
+            self.res.position[param_name][chain].mean(axis = 0)  for chain in range(self.num_chains)
+        ]).mean(axis = 0)
