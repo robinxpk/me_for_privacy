@@ -1,5 +1,103 @@
+# %%
+import jax
+import jax.numpy as jnp
+import jax.nn as jnn
+import blackjax
+import matplotlib.pyplot as plt
+import pandas as pd
+
+### Draw rng_key for later use
+from datetime import date
+rng_key = jax.random.key(int(date.today().strftime("%Y%m%d")))
+
 # Contains the Bayesian Hierarchical Models (BHMs) class 
 class BHM: 
-    def __init__(self, data, model):
-        self.data = data
-        self.model = model
+    def __init__(
+            self, 
+            data: pd.DataFrame, 
+            response: str, 
+            covariates: list,
+            post_log_dens: callable,
+            initial_positions: dict, 
+            inverse_mass_matrix: jnp.ndarray, 
+            rng_key: jax.random.PRNGKey,
+            num_chains: int = 4,
+            inital_step_size: float = 1e-3, 
+            init_sampler: callable = blackjax.nuts, 
+            warmup_steps = 1_000,
+            burnin: int = 1_000,
+            n_samples: int = 5_000
+        ):
+
+        # The hierarchical model is specified by the posterior log density function in a JAX-compatible way.
+
+        # JAX related attributes
+        self.rng_key = rng_key        
+
+        # Design matrix
+        self.X = jnp.array(data[covariates].values) 
+        self.X = jnp.c_[jnp.ones(self.X.shape[0])[:, None], self.X]
+        # Number of covariates (including intercept)
+        self.p = self.X.shape[1]
+        # Sample size
+        self.n = self.X.shape[0]
+        # Response variable
+        self.y = jnp.array(data[response].values)
+        # Latent parameters of the model
+        self.params = ""
+        # Posterior log density function
+        self.logdensity_fn = lambda params: post_log_dens(self.y, self.X, params)
+
+        # MCMC parameters
+        self.initial_positions = initial_positions
+        self.num_chains = num_chains
+        self.burnin = burnin
+        self.n_samples = n_samples
+        self.step_size = inital_step_size
+        self.inverse_mass_matrix = inverse_mass_matrix
+        self.sampler = init_sampler
+        self.warumup_steps = warmup_steps
+        self.warmup = blackjax.window_adaptation(
+            init_sampler,
+            self.logdensity_fn
+        )
+
+    ### --- Inference Loop
+    def _inference_loop(self, rng_key, kernel, initial_state, num_samples):
+
+        @jax.jit
+        def one_step(state, rng_key):
+            state, _ = kernel(rng_key, state)
+            return state, state
+
+        keys = jax.random.split(rng_key, num_samples)
+        _, states = jax.lax.scan(one_step, initial_state, keys)
+
+        return states
+
+    # %%
+    def _adapt_and_sample_one_chain(self, rng_key, initial_position):
+        
+        ## Key handling
+        adapt_key, sample_key = jax.random.split(rng_key)
+        
+        ## For a given initial position, get 
+        (state, parameters), info = self.warmup.run(
+            adapt_key,
+            initial_position,
+            num_steps = self.warumup_steps
+        )
+        kernel = self.sampler(self.logdensity_fn, **parameters)
+
+        chain = self._inference_loop(
+            sample_key, 
+            kernel.step, 
+            state, 
+            num_samples = self.n_samples
+        )
+
+        return chain
+    
+    def fit(self): 
+        rng_key = jax.random.split(self.rng_key, self.num_chains)
+        self.res = jax.vmap(self._adapt_and_sample_one_chain)(rng_key, self.initial_positions)

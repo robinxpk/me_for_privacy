@@ -55,7 +55,6 @@ logdensity_fn = lambda params: post_log_dens(y, X, params)
 num_chains = 4
 step_size = 1e-3
 inverse_mass_matrix = jnp.ones(p + 2)
-nuts = blackjax.nuts(logdensity_fn, step_size, inverse_mass_matrix)
 initial_positions = {
     "beta": jnp.ones((num_chains, p)),
     "log_sigma_sq_beta": jnp.ones((num_chains, )) , 
@@ -173,3 +172,4 @@ plt.scatter(*X_no_intercep.T, c=colors)
 plt.xlabel(r"$X_0$")
 plt.ylabel(r"$X_1$")
 # %%
+
