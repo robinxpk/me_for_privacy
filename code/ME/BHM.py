@@ -19,6 +19,7 @@ class BHM:
             covariates: list,
             post_log_dens: callable,
             hyperparams: dict,
+            empirical_logdensity: callable,
             initial_positions: dict, 
             inverse_mass_matrix: jnp.ndarray, 
             rng_key: jax.random.PRNGKey,
@@ -47,7 +48,7 @@ class BHM:
         # Latent parameters of the model
         self.params = ""
         # Posterior log density function
-        self.logdensity_fn = lambda params: post_log_dens(self.y, self.X, params, **hyperparams)
+        self.logdensity_fn = lambda params: post_log_dens(self.y, self.X, params, empirical_logdensity, **hyperparams)
 
         # MCMC parameters
         self.initial_positions = initial_positions
@@ -112,9 +113,9 @@ class BHM:
         for i, axi in enumerate(ax):
             for chain in range(self.num_chains):
                 if _vector_dim == 1:
-                    axi.plot(self.res.position[param_name][chain], alpha = 0.5)
+                    axi.plot(self.res.position[param_name][chain], alpha = 0.3)
                 else:
-                    axi.plot(self.res.position[param_name][chain][:, i], alpha = 0.5)
+                    axi.plot(self.res.position[param_name][chain][:, i], alpha = 0.3)
             axi.axvline(x = self.burnin, color = "red")
             # Latex formatting 
             # axi.set_title(f"${param_name}{i}$")
