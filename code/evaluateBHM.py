@@ -225,6 +225,16 @@ corrected = BHM(
 corrected.fit()
 corrected.viz_chains(param_name = "beta")
 
+# %%
+abs_bias_corrected = corrected.mean_estimates(param_name = "beta") -  frequentist_values # jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365]))
+print("Point Estimates:", corrected.mean_estimates(param_name = "beta") )
+print("Bias: ", abs_bias_corrected) # Deviation (relative)
+print("Relative Bias: ", (corrected.mean_estimates(param_name = "beta") - frequentist_values) / frequentist_values)
+
+# %%
+
+# %%
+
 # # %%
 # # Run the loop:
 # # Quantify model bias
