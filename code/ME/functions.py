@@ -61,11 +61,4 @@ def post_log_dens_gaussian_additive(y, X, params, mdl, b, c, d, e, f):
     log_sigma_error_term = (e - 1) * (log_sigma_age + log_sigma_bmi + log_sigma_kcal) - f * (jnp.exp(log_sigma_age) + jnp.exp(log_sigma_bmi) + jnp.exp(log_sigma_kcal)) + log_sigma_age + log_sigma_bmi + log_sigma_kcal
     log_empirical_density = mdl.logpdf(X_true.T).sum()
     ## Print statement I used to check if the empirical density actually varied. It does :) 
-    # jax.debug.print("log_likelihood_term: {log_likelihood_term}, log_measurement_error_term: {log_measurement_error_term}, log_empirical_density: {log_empirical_density}, log_beta_prior_term: {log_beta_prior_term}, log_sigma_prior_term: {log_sigma_prior_term}, log_sigma_error_term: {log_sigma_error_term}", 
-    #                 log_likelihood_term = log_likelihood_term, 
-    #                 log_measurement_error_term = log_measurement_error_term.sum(), 
-    #                 log_empirical_density = log_empirical_density, 
-    #                 log_beta_prior_term = log_beta_prior_term, 
-    #                 log_sigma_prior_term = log_sigma_prior_term, 
-    #                 log_sigma_error_term = log_sigma_error_term)
     return log_likelihood_term + log_measurement_error_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term + log_sigma_error_term

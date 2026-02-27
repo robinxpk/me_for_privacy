@@ -1,6 +1,15 @@
+#### TODOs ####
+- [ ] Use all Bayesian Models (no freq as reference).
+- [ ] Fix error variance (else, not identifiable; also write note on this).
+- [ ] Write section on attenuation factor and why (thus) the measurement error variance has to be specified.
+    - [ ] Mention that, due to fixing the error variance, the model does not over-compensate.
+- [ ] Formulate section where I go into *why* this approach works and how it accounts for the high dimensionality. What is the frequentist equivalent to this?
+- [ ] Let run overnight.
+    - [ ] If **not** converges: Try error on only one of the covariates.
+- [ ] For linear model, use nhanes data only, not the voe nhanes data.
+- [ ] Clean up Data class.
+
 # Measurement for Privacy
-
-
 ## Virtual Environment Setup (Conda)
 
 Based on the given `.yml`-file, create a conda environment using: 
@@ -108,7 +117,7 @@ $$
 $$
 Same all linear models above. Note that this model uses the *true* values of the covariates $x_{ij}$. 
 #### B) Measurement Model ####
-This model specifies how the measurement error is applied to the signal. 
+This model specifies how the measurement error is applied to the true values. 
 
 e.g.: Gaussian, additive error:
 $$
@@ -118,8 +127,8 @@ $$
 \end{align}
 $$
 
-#### C) Signal Model ####
-Finally, the signal models specifies the distribution of the signal itself, i.e. distributional assumptions on latent (true) variable $x$. 
+#### C) Exposure Model ####
+Finally, the exposure models specifies the distribution of the true values themselves, i.e. distributional assumptions on latent (true) variable $x$. 
 $$
 \begin{align}
     x_{ij} \sim F_p
@@ -134,7 +143,7 @@ This might be too much information published, but maybe not?
 #### Likelihood ####
 $$
 \begin{align}
-    p(\boldsymbol{\beta}, x | y, \tilde{x}) \propto p(\sigma^2)p(\sigma^2_{\epsilon})p(\boldsymbol{\beta})\prod_{i=1}^{n}{p(y_i|\boldsymbol{\beta}, x_i) p(\tilde{x_i}|x_i, \sigma_\epsilon)}p(x_i)
+    p(\boldsymbol{\beta}, x | y, \tilde{x}) \propto p(\sigma^2)p(\sigma^2_{\epsilon})p(\boldsymbol{\beta})\prod_{i=1}^{n}{p(y_i|\boldsymbol{\beta}, x_i, \sigma^2) p(\tilde{x_i}|x_i, \sigma_\epsilon^2)}p(x_i)
 \end{align}
 $$
 

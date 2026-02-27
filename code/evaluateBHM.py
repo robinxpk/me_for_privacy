@@ -95,9 +95,11 @@ print(bhm.mean_estimates(param_name = "log_sigma"))
 # | bmi       | -0.0748638   |
 # | DR1TKCAL  | -0.000378365 |
 # Deviation (absolute)
-print("Bias: ", bhm.mean_estimates(param_name = "beta") - jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365]))
-# Deviation (relative)
-print("Relative Bias: ", (bhm.mean_estimates(param_name = "beta") - jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365])) / jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365]))
+frequentist_values =  jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365])
+abs_bias = bhm.mean_estimates(param_name = "beta") -  frequentist_values # jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365]))
+print("Bias: ", abs_bias) # Deviation (relative)
+
+print("Relative Bias: ", (bhm.mean_estimates(param_name = "beta") - frequentist_values) / frequentist_values)
 # %%
 #!! -------------------------- Quantify Bias due to ME -------------------------------- !!#
 ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
@@ -118,7 +120,8 @@ mdl = gaussian_kde(voe_true.raw_data[["RIDAGEYR", "bmi", "DR1TKCAL"]].values.T, 
 # 4) Evaluate 
 
 # Create the data with additive Gaussian error. 
-normal_sd = 10 ** 3 # NOTE: Depends on scale, of course. e.g. calories reach up to 4k
+# !!! To supply the normal_sd to JAX, it must be a FLOAT!
+normal_sd = 10. ** 3# NOTE: Depends on scale, of course. e.g. calories reach up to 4k
 voe_normal= Data(
     name = f"normal_{normal_sd}", 
     raw_data = voe_data.dropna(ignore_index = True), 
@@ -127,6 +130,33 @@ voe_normal= Data(
     error_type="normal"
 )
 
+# %%
+# Signle model fits
+## The naive model 
+# Naive Bayesian model not accounting for error; Parameters used as in model fit to compare to frequentistic OLS estimates
+naive = BHM(
+    data = voe_normal.masked_data[["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]],
+    response = "LBXT4",
+    covariates = ["RIDAGEYR", "bmi", "DR1TKCAL"],
+    post_log_dens = post_log_dens,
+    hyperparams = {
+        "b": 100, # TODO: Depends on scale, of course. e.g. age reaches up to 80, calories reach up to 4k, bmi reaches up to 40; this is the SD of the posterior
+        "c": 1,
+        "d": 1
+    },
+    initial_positions = {
+        "beta": jnp.zeros((num_chains, p)),
+        "log_sigma": jnp.ones((num_chains, ))
+    }, 
+    empirical_kde_mdl = dummy_empirical_kde_mdl,
+    inverse_mass_matrix = jnp.eye(3),
+    rng_key = rng_key,
+    num_chains = num_chains,
+    inital_step_size = 1e-3
+)
+naive.fit()
+
+# %%
 # Run the loop:
 # Quantify model bias
 def get_data_for_model(
@@ -165,7 +195,7 @@ def quantify_bias(
             error_type=error_type, 
             cols_excluded_from_error=cols_excluded_from_error
         )
-        # Naive Bayesian model not accounting for error; Parameters used as in model fit to compare to frequentistic OLS estimates
+        # # Naive Bayesian model not accounting for error; Parameters used as in model fit to compare to frequentistic OLS estimates
         # naive = BHM(
         #     data = data, 
         #     response = "LBXT4",
@@ -180,7 +210,7 @@ def quantify_bias(
         #         "beta": jnp.zeros((num_chains, p)),
         #         "log_sigma": jnp.ones((num_chains, ))
         #     }, 
-        #     empirical_logdensity = dummy_empirical_logdensity,
+        #     empirical_kde_mdl = dummy_empirical_kde_mdl,
         #     inverse_mass_matrix = jnp.eye(3),
         #     rng_key = rng_key,
         #     num_chains = num_chains,
@@ -206,15 +236,30 @@ def quantify_bias(
             },
             empirical_kde_mdl = empirical_kde_mdl,
             initial_positions = {
-                "beta": jnp.zeros((num_chains, p)),
+                ## Ignorant starting values
+                # "beta": jnp.zeros((num_chains, p)),
+                # "log_sigma": jnp.ones((num_chains, )), 
+                # "log_sigma_age": jnp.ones((num_chains, )),
+                # "log_sigma_bmi": jnp.ones((num_chains, )),
+                # "log_sigma_kcal": jnp.ones((num_chains, )),
+                ## Frequentist point estimates 
+                # Beta estimates
+                "beta": jnp.repeat(
+                    jnp.array([frequentist_values]), 
+                    repeats = num_chains,
+                    axis = 0
+                ),
+                # Variance of Y, unknown... 
+                # TODO: Use empirical estimate of true values. lol. wtf.
                 "log_sigma": jnp.ones((num_chains, )), 
-                "log_sigma_age": jnp.ones((num_chains, )),
-                "log_sigma_bmi": jnp.ones((num_chains, )),
-                "log_sigma_kcal": jnp.ones((num_chains, )),
-                # This is a bit of a hack: 
-                # I need to pass the true covariate values to the log density function to express the measurement error density; 
-                # this is how I do it for now: Pass observed values in, 
-                # but it might be better to change the structure of the BHM class to allow for passing additional data to the log density function in a more elegant way
+                # Error variances known from above
+                # TODO: Need to apply different variances to the variables. Make the Code work with a dictionary or something which contains variable specific variances.
+                # TODO: My normal_sd is actually the variance. Rework how the error is added anyway... 
+                # TODO: Just realized that sigma in the sampler is the variance. OMG. Fix those namings. Horror....
+                "log_sigma_age": jnp.repeat(jnp.log(jnp.array([normal_sd])), num_chains, axis = 0),
+                "log_sigma_bmi": jnp.repeat(jnp.log(jnp.array([normal_sd])), num_chains, axis = 0),
+                "log_sigma_kcal": jnp.repeat(jnp.log(jnp.array([normal_sd])), num_chains, axis = 0),
+                # For true observed values, start off with the ERROR-CONTAMINATED values
                 "X_true": jnp.tile(data[["RIDAGEYR", "bmi", "DR1TKCAL"]].values, (num_chains, 1, 1)) 
             }, 
             inverse_mass_matrix = jnp.eye(3),
