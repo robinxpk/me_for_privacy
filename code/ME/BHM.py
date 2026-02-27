@@ -17,8 +17,11 @@ class BHM:
             data: pd.DataFrame, 
             response: str, 
             covariates: list,
+            # The columns of the design matrix which are affected by measurement error. 
+            error_cols: list,
             post_log_dens: callable,
             hyperparams: dict,
+            error_cov_matrix: jnp.ndarray,
             empirical_kde_mdl: callable,
             initial_positions: dict, 
             inverse_mass_matrix: jnp.ndarray, 
@@ -48,7 +51,11 @@ class BHM:
         # Latent parameters of the model
         self.params = ""
         # Posterior log density function
-        self.logdensity_fn = lambda params: post_log_dens(self.y, self.X, params, empirical_kde_mdl, **hyperparams)
+        self.error_cols_names = error_cols 
+        # Within the JAX sampler, column names cannot be used, but indeces only.
+        # Translate the column name into an index. Note that the log density is evaluated without the intercept in X
+        self.error_cols_index = [covariates.index(col) for col in error_cols] 
+        self.logdensity_fn = lambda params: post_log_dens(self.y, self.X, params, self.error_cols_index, error_cov_matrix, empirical_kde_mdl, **hyperparams)
 
         # MCMC parameters
         self.initial_positions = initial_positions

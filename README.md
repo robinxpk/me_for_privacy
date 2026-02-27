@@ -1,13 +1,15 @@
 #### TODOs ####
+- [ ] **Note:** Allow for variable $j$ specific error variance $\sigma^{2}_{\epsilon, j}$!!, i.e. within a variable, the error variance is constant, but among variables, the error variance may differ.
 - [ ] Use all Bayesian Models (no freq as reference).
 - [ ] Fix error variance (else, not identifiable; also write note on this).
-- [ ] Write section on attenuation factor and why (thus) the measurement error variance has to be specified.
+- [ ] Write section on attenuation factor and why (thus) the measurement error variance has to be specified. (Already referenced it somewhere. lol.)
     - [ ] Mention that, due to fixing the error variance, the model does not over-compensate.
 - [ ] Formulate section where I go into *why* this approach works and how it accounts for the high dimensionality. What is the frequentist equivalent to this?
 - [ ] Let run overnight.
     - [ ] If **not** converges: Try error on only one of the covariates.
 - [ ] For linear model, use nhanes data only, not the voe nhanes data.
 - [ ] Clean up Data class.
+- [ ] Prior (and Posterior) predictive checks.
 
 # Measurement for Privacy
 ## Virtual Environment Setup (Conda)
@@ -118,14 +120,15 @@ $$
 Same all linear models above. Note that this model uses the *true* values of the covariates $x_{ij}$. 
 #### B) Measurement Model ####
 This model specifies how the measurement error is applied to the true values. 
+**Important:** The (true) value of the error variance $\sigma^2_{\epsilon}$ must be supplied to the sampler. Else, the problem is not identifiable (See [[#Attenuation Factor]])! 
 
 e.g.: Gaussian, additive error:
 $$
 \begin{align}
-    \tilde{x}_{ij} &= x_{ij} + \epsilon_{ij} \text{ with } \epsilon \sim N(0, \sigma^2_{\epsilon})\\
-    \sigma^2_{\epsilon} &\sim Ga(e, f) \text{ with given }e, f
+    \tilde{x}_{ij} &= x_{ij} + \epsilon_{ij} \text{ where } \epsilon \sim N(0, \sigma^2_{\epsilon}), 
 \end{align}
 $$
+where $\sigma^2_{\epsilon}$ is known.
 
 #### C) Exposure Model ####
 Finally, the exposure models specifies the distribution of the true values themselves, i.e. distributional assumptions on latent (true) variable $x$. 
@@ -135,15 +138,16 @@ $$
 \end{align}
 $$
 
-**Important.** Assume a reasonable distribution $F_p$ here. Else, we might run into a bias. For now, we can use the empirical density of the original variable (where "original" refers to the variable without error); 
-This might be too much information published, but maybe not? 
-    - Can supply empirical distribution as function to JAX (I think). 
-    - How problematic is a publication of the error-free data distribution? 
+**Important.** Assume a reasonable distribution $F_p$ here. Else, the corrected values may be biased, too. 
+For now, we can use the empirical density of the original variable (where "original" refers to the variable without error); </br> 
+TODO: This might be too much information published, but maybe not? 
+- Can supply empirical distribution as function to JAX. 
+- How problematic is a publication of the error-free data distribution? 
 
 #### Likelihood ####
 $$
 \begin{align}
-    p(\boldsymbol{\beta}, x | y, \tilde{x}) \propto p(\sigma^2)p(\sigma^2_{\epsilon})p(\boldsymbol{\beta})\prod_{i=1}^{n}{p(y_i|\boldsymbol{\beta}, x_i, \sigma^2) p(\tilde{x_i}|x_i, \sigma_\epsilon^2)}p(x_i)
+    p(\boldsymbol{\beta}, \boldsymbol{X}, \sigma| y, \tilde{x}, \sigma^2_{\epsilon}) \propto p(\sigma^2)p(\boldsymbol{\beta})\prod_{i=1}^{n}{p(y_i|\boldsymbol{\beta}, \boldsymbol{x}_i, \sigma^2) p(\boldsymbol{\tilde{x_i}}|\boldsymbol{x_i}, \sigma_\epsilon^2)}p(\boldsymbol{x_i})
 \end{align}
 $$
 
@@ -155,20 +159,21 @@ Für priors:
 
 
 ## Errors
-In the following, we assume a total of $K$ variables where $j \in \{ 1, ..., K\}$ denotes the $j$-th variable. Each variable is observed a $n$ times with $i = 1, ..., n$ denoting the $i$-th observation.
+This section presents the errors we added to the data. 
 
 *Note: An error should only increase the variance and not introduce any bias!* 
 
+In the following, we assume a total of $K$ variables where $j \in \{ 1, ..., K\}$ denotes the $j$-th variable. Each variable is observed $n$ times with $i = 1, ..., n$ denoting the $i$-th observation.
+
 #### Evaluation of the Error-Degree ####
-This section presents the errors we added to the data. 
-The uncertainty introduced by each error is evaluated using the uncertainty evaluation formula (UEF) defined as 
+The uncertainty introduced by each error is evaluated using the uncertainty evaluation formula (UEF) defined variable-wise as 
 $$
 \begin{align}
-    nMSE = \frac{(x_{true} - x_{error})^2}{\text{Var}(x_{true})}
+    nMSE_j = \frac{\frac{1}{n}(\boldsymbol{x}_{j, true} - \boldsymbol{x}_{j, error})^T(\boldsymbol{x}_{j, true} - \boldsymbol{x}_{j, error})}{\widehat{Var}(x_{j, true})}
 \end{align}
 $$
 
-We aim to have each error introduce the same level of uncertainty such that results are comparable among error types. 
+We aim to have each error introduce the same level of uncertainty within each variable $j \in \{1, ..., K\}$ such that results are comparable among error types. 
 
 ### Additive normal error 
 To each variable, we just add a normally distributed random variable with an expected value of $0$. 
@@ -185,6 +190,7 @@ $$
 $$
 **Note:** Allow for variable $j$ specific error variance $\sigma^{2}_{\epsilon, j}$!!, i.e. within a variable, the error variance is constant, but among variables, the error variance may differ
 (Thus, not iid., but only independently distributed).
+
 #### Model Specification ####
 **A) Linear Model**. 
 
@@ -202,7 +208,9 @@ $$
     \sigma^2 &\sim Ga(c, d) \text{ with given }c, d. 
 \end{align}
 $$
-**B) Measurement Model.**
+
+**B) Measurement Model.** </br> 
+As mentioned above, the measurement model requires the error variance to be known for identification purposes. 
 $$
 \begin{align}
     \boldsymbol{\tilde{x}}_{i}\mid \boldsymbol{x}_i, \boldsymbol{\sigma}_{\epsilon}^2& \sim N\left(  
@@ -223,12 +231,7 @@ $$
 \right)
 \end{align}
 $$
-Priors. 
-$$
-\begin{align}
-    \sigma^2_{\epsilon, j} \sim Ga(e, f) \text{ with given }e, f. 
-\end{align}
-$$
+Where all $\sigma^2_{j, \epsilon}$ are given, i.e. **no priors!** which nicely simplifies the (log-)posterior. 
 
 **C) Signal Model.**
 $$
@@ -252,8 +255,7 @@ $$
 \right)
 p(\boldsymbol{\beta})
 p(\sigma^2)
-\underbrace{\left( \prod_{j \in \{age, bmi, kcal\}}^{ }{p(\sigma^2_{\epsilon, j})} \right)
-}_{p(\boldsymbol{\sigma}^2_{\epsilon})}\\
+\\
 
 &= 
 \left( 
@@ -265,7 +267,6 @@ p(\sigma^2)
 \right)
 N(\boldsymbol{0}, b^2 \boldsymbol{I}_{p \times p})
 Ga(c, d)
-\left( \prod_{j \in \{age, bmi, kcal\}}^{ }{Ga(e, f)} \right)\\
 \end{align}
 $$
 Define $\boldsymbol{z}_i = (1, \boldsymbol{x}_i)$ such that
@@ -277,25 +278,23 @@ $$
     \exp\left( -\frac{1}{2\sigma^2} (y_i - \boldsymbol{z}_i^T\boldsymbol{\beta})^2 \right)
 \right]
 \left[  
-    \det(\boldsymbol{G})^{-1 / 2} \exp\left( -\frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i   )^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i ) \right)
+    \exp\left( -\frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i   )^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i ) \right)
 \right] 
 \left[ f_p(\boldsymbol{x}_i) \right]
 }
 \right)\\
 & \times \det(b^2 \boldsymbol{I}_{p \times p})^{-1 / 2} \exp\left( - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \right) (\sigma^2)^{c-1} \exp\left( -d \sigma^2 \right) \\
-& \times \prod_{j \in \{age, bmi, kcal\}}^{ }{(\sigma^2_{\epsilon, j})^{e-1}\exp\left( -f \sigma^2_{\epsilon, j} \right)}
 \end{align*}
 $$
 
-The log posterior in the given by 
+The log posterior is 
 $$
 \begin{align*}
      \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \sigma^2 , \boldsymbol{\sigma}^2_{\epsilon}\mid \boldsymbol{\tilde{x}}, \boldsymbol{y})]\\
-    & \propto -\frac{n}{2} \log \sigma^2 - \frac{n}{2} \left( \log \sigma^2_{\epsilon, age} + \log\sigma^2_{\epsilon, bmi}+\log \sigma^2_{\epsilon, kcal} \right)\\
+    & \propto -\frac{n}{2} \log \sigma^2 \\
     & + \sum_{i=1}^{n}{\left( -\frac{1}{2\sigma^2}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
     & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
     & + (c-1) \log \sigma^2 - d \sigma^2 \\
-    & + (e-1) (\log\sigma^2_{\epsilon, age} + \log\sigma^2_{\epsilon, bmi} + \log\sigma^2_{\epsilon, kcal}) - f (\sigma^2_{\epsilon, age} + \sigma^2_{\epsilon, bmi} + \sigma^2_{\epsilon, kcal})
 \end{align*}
 $$
 To sample from real line, express the posterior in terms of $\log \sigma^2 =: \upsilon$ bzw. $\log \sigma^2_{\epsilon, j} =: \upsilon_{\epsilon, j}$.  
@@ -303,15 +302,12 @@ Use change of variable and simply add the $\log |J|$ for each transformation (No
 $$
 \begin{align*}
      \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \upsilon , \boldsymbol{\upsilon}_{\epsilon}\mid \boldsymbol{\tilde{x}}, \boldsymbol{y})]\\
-    & \propto -\frac{n}{2} \upsilon - \frac{n}{2} \left( \upsilon_{\epsilon, age} + \upsilon_{\epsilon, bmi}+\upsilon_{\epsilon, kcal} \right)\\
+    & \propto -\frac{n}{2} \upsilon \\
     & + \sum_{i=1}^{n}{\left( -\frac{1}{2 \exp \upsilon}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T \Upsilon_{\epsilon}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
     & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
     & + (c-1) \upsilon - d \exp \upsilon  \underbrace{+ \upsilon}_{+ \log |J|}\\
-    & + (e-1) (\upsilon_{\epsilon, age} + \upsilon_{\epsilon, bmi} + \upsilon_{\epsilon, kcal}) - f (\exp \upsilon_{\epsilon, age} + \exp \upsilon_{\epsilon, bmi} + \exp \upsilon_{\epsilon, kcal}) \\
-    & \underbrace{+ \upsilon_{\epsilon, age} + \upsilon_{\epsilon, bmi} + \upsilon_{\epsilon, kcal}}_{+ \log |J_{\epsilon, age}| + \log |J_{\epsilon, bmi}| + \log |J_{\epsilon, kcal}|}
 \end{align*}
 $$
-where $\Upsilon_{\epsilon} = diag(\exp \upsilon_{\epsilon, age}, \exp \upsilon_{\epsilon, bmi}, \exp \upsilon_{\epsilon, kcal})$. 
 
 ### Multiplicate log-normal error
 Every variable is multiplied by a log-normally distributed random variable. 
@@ -354,10 +350,6 @@ This type of error build rank-value pairs. Then takes every observation and pote
 When all observation has been assigned a new rank, each rank is the value assigned which was saved in the rank-value pair. 
 Rephrasing it like this seems to simplify things: It basically is an error on the assigned rank. 
 
-
-
-
-
 #### Mathematical Error Definition
 $$
 \begin{align}
@@ -396,9 +388,6 @@ $$
 $$
 where $G(.)$ is just any function that (potentially) assigns a new rank to $x_{ji}$ and $\hat{F}$ (re-)transform from rank to (observed) value. 
 In the above case, 
-
-
-
 
 $$
 \begin{align}
