@@ -167,11 +167,9 @@ In the following, we assume a total of $K$ variables where $j \in \{ 1, ..., K\}
 
 #### Evaluation of the Error-Degree ####
 The uncertainty introduced by each error is evaluated using the uncertainty evaluation formula (UEF) defined variable-wise as 
-```math
-\begin{aligned}
+$$
     nMSE_j = \frac{\frac{1}{n}(\boldsymbol{x}_{j, true} - \boldsymbol{x}_{j, error})^T(\boldsymbol{x}_{j, true} - \boldsymbol{x}_{j, error})}{\widehat{Var}(x_{j, true})}
-\end{aligned}
-```
+$$
 
 
 We aim to have each error introduce the same level of uncertainty within each variable $j \in \{1, ..., K\}$ such that results are comparable among error types. 
@@ -183,10 +181,8 @@ The variance of the normal distribution affects the UEF.
 #### Mathematical definition ####
 $$
 \begin{aligned}
-\begin{split}
     \tilde{x}_{ji} = x_{ji} + \epsilon_{ji} \\
     \text{where } \epsilon_{ji} \overset{indep.}{\sim} N(0, \sigma^2_{\epsilon, j}) 
-\end{split}
 \end{aligned}
 $$
 **Note:** Allow for variable $j$ specific error variance $\sigma^{2}_{\epsilon, j}$!!, i.e. within a variable, the error variance is constant, but among variables, the error variance may differ
