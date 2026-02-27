@@ -68,10 +68,10 @@ Body Measures: [here](https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Comp
 Here, $x_{j}$ refers to observed("true") values. I.e. without introducing any ME.
 1. Likelihood 
 $$
-\begin{aligneded}
+\begin{aligned}
     y_{i, lbxt4} \mid \boldsymbol{\beta}, \sigma^2 &\sim N(\mu_i, \sigma^2)\\
     \mu_i &= \beta_0 + \beta_{age} x_{i, age} + \beta_{bmi} x_{i, bmi} + \beta_{kcal} x_{i, kcal}
-\end{aligneded}
+\end{aligned}
 $$
 2. Priors
 $$
@@ -167,8 +167,11 @@ In the following, we assume a total of $K$ variables where $j \in \{ 1, ..., K\}
 
 #### Evaluation of the Error-Degree ####
 The uncertainty introduced by each error is evaluated using the uncertainty evaluation formula (UEF) defined variable-wise as 
-$$nMSE_j = \frac{\frac{1}{n}(\boldsymbol{x}_{j, true} - \boldsymbol{x}_{j, error})^T(\boldsymbol{x}_{j, true} - \boldsymbol{x}_{j, error})}{\widehat{Var}(x_{j, true})}$$
-
+$$
+\begin{aligned}
+    nMSE_j = \frac{\frac{1}{n}(\boldsymbol{x}_{j, true} - \boldsymbol{x}_{j, error})^T(\boldsymbol{x}_{j, true} - \boldsymbol{x}_{j, error})}{\widehat{Var}(x_{j, true})}
+\end{aligned}
+$$
 
 We aim to have each error introduce the same level of uncertainty within each variable $j \in \{1, ..., K\}$ such that results are comparable among error types. 
 
@@ -179,8 +182,10 @@ The variance of the normal distribution affects the UEF.
 #### Mathematical definition ####
 $$
 \begin{aligned}
+\begin{split}
     \tilde{x}_{ji} = x_{ji} + \epsilon_{ji} \\
     \text{where } \epsilon_{ji} \overset{indep.}{\sim} N(0, \sigma^2_{\epsilon, j}) 
+\end{split}
 \end{aligned}
 $$
 **Note:** Allow for variable $j$ specific error variance $\sigma^{2}_{\epsilon, j}$!!, i.e. within a variable, the error variance is constant, but among variables, the error variance may differ
@@ -271,7 +276,7 @@ Ga(c, d)
 $$
 Define $\boldsymbol{z}_i = (1, \boldsymbol{x}_i)$ such that
 $$
-\begin{aligned*}
+\begin{align*}
 \propto &
 \left(  (\sigma^2)^{-n / 2}\prod_{i=1}^{n}{
 \left[  
@@ -284,29 +289,29 @@ $$
 }
 \right)\\
 & \times \det(b^2 \boldsymbol{I}_{p \times p})^{-1 / 2} \exp\left( - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \right) (\sigma^2)^{c-1} \exp\left( -d \sigma^2 \right) \\
-\end{aligned*}
+\end{align*}
 $$
 
 The log posterior is 
 $$
-\begin{aligned*}
+\begin{align*}
      \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \sigma^2 \mid \boldsymbol{\tilde{x}}, \boldsymbol{y}, \boldsymbol{G})]\\
     & \propto -\frac{n}{2} \log \sigma^2 \\
     & + \sum_{i=1}^{n}{\left( -\frac{1}{2\sigma^2}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
     & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
     & + (c-1) \log \sigma^2 - d \sigma^2 \\
-\end{aligned*}
+\end{align*}
 $$
 To sample from real line, express the posterior in terms of $\log \sigma^2 =: \upsilon$ bzw. $\log \sigma^2_{\epsilon, j} =: \upsilon_{\epsilon, j}$.  
 Use change of variable and simply add the $\log |J|$ for each transformation (Note: Only relevant for the densities related to the variances, but express full density in terms of log variance). 
 $$
-\begin{aligned*}
+\begin{align*}
      \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \upsilon\mid \boldsymbol{\tilde{x}}, \boldsymbol{y}, \boldsymbol{G})]\\
     & \propto -\frac{n}{2} \upsilon \\
     & + \sum_{i=1}^{n}{\left( -\frac{1}{2 \exp \upsilon}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T G^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
     & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
     & + (c-1) \upsilon - d \exp \upsilon  \underbrace{+ \upsilon}_{+ \log |J|}\\
-\end{aligned*}
+\end{align*}
 $$
 
 ### Multiplicate log-normal error
