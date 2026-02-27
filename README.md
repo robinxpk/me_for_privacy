@@ -159,9 +159,14 @@ Für priors:
 
 
 ## Errors
-This section presents the errors we added to the data. 
-
 *Note: An error should only increase the variance and not introduce any bias!* 
+
+This section presents the errors we added to the data. For each error, I give
+1. Mathematical Definition
+2. Specification of the BHM
+3. (Unnormalized) Posterior
+
+The latter is used to implement the `log_posterior`-function in `python`.
 
 In the following, we assume a total of $K$ variables where $j \in \{ 1, ..., K\}$ denotes the $j$-th variable. Each variable is observed $n$ times with $i = 1, ..., n$ denoting the $i$-th observation.
 
@@ -314,21 +319,169 @@ $$
 \end{align*}
 $$
 
-### Multiplicate log-normal error
+### Multiplicative log-normal error
+
+
 Every variable is multiplied by a log-normally distributed random variable. 
 
-#### Mathematical definition
+All that changes compared to the [[#Additive normal error]] is the *Measurement Model*. For sake of completeness, I repeat specify the full model and the full posterior, but the difference is in the measurement model only! 
+
+#### Mathematical definition of log-normal error
 $$
 \begin{aligned}
-\begin{split}
-    \tilde{x}_{ji} &= x_{ji} \cdot \epsilon_{ji} \\
+    \tilde{x}_{ij} &= x_{ij} \cdot \epsilon_{ij} \\
     &\text{where } \log(\epsilon_{ji}) \overset{iid.}{\sim}N\left(\mu_{(log)} , \sigma_{(log)}^2\right) \\ 
-    &\leftrightarrow \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left(\exp\left( \mu_{(log)}+ \frac{\sigma_{(log)}^2}{2} \right) , \left[\exp(\sigma^2)-1\right]\exp\left( 2 \mu_{(log)}+\sigma_{(log)} \right) \right).
-\end{split}
+    &\leftrightarrow \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left(\exp\left[ \mu_{(log)}+ \frac{\sigma_{(log)}^2}{2} \right] , \left(\exp[\sigma^2_{(log)}]-1\right)\exp\left[ 2 \mu_{(log)}+\sigma_{(log)} \right] \right).
 \end{aligned}
 $$
 To have $\mathbb{E}_{ }\left[ \tilde{x}_{ij}\right] = x_{ij}$, choose $\mathbb{E}_{}\left[ \epsilon_{ij}\right] = 1$, i.e. $\mu_{(log)}= -\frac{\sigma^2_{(log)}}{2}$. 
+
+This implies the simplification to
+$$
+\begin{aligned}
+    \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left( 1,  \sigma^2_{\epsilon, j}\right), 
+\end{aligned}
+$$
+where $\sigma^2_{\epsilon}:=\exp\left( \sigma^2_{(log)} \right)-1$.
+
+This gives
+$$
+\begin{aligned}
+    \tilde{x}_{ij} \mid x_{ij} \sim \text{Lognormal}\left( x_{ij}, \sigma^2_{\epsilon, j}x_{ij}^2 \right).
+\end{aligned}
+$$
+
+#### Model Specification ####
+**A) Linear Model**. 
+Likelihood
+$$
+\begin{aligned}
+    y_{i, lbxt4} &\sim N(\mu_i, \sigma^2)\\
+    \mu_i &= \beta_0 + \beta_{age} x_{i, age} + \beta_{bmi} x_{i, bmi} + \beta_{kcal} x_{i, kcal},
+\end{aligned}
+$$
+with
+$$
+\begin{aligned}
+    \boldsymbol{\beta} &\sim  N(\boldsymbol{0}, b^2 \boldsymbol{I}_{p \times p}) \text{ with given }b, \\
+    \sigma^2 &\sim Ga(c, d) \text{ with given }c, d. 
+\end{aligned}
+$$
+
+**B) Measurement Model.** </br> 
+$$
+\begin{aligned}
+    \tilde{x}_{ij} \mid x_{ij} \sim \text{Lognormal}\left(x_{ij}, \sigma^2_{\epsilon, j}x_{ij}^2 \right), 
+\end{aligned}
+$$
+As above: To be identifiable, I need to specify the measurement error variance $\sigma^2_{(log)}$ which translates into $\sigma^2_{\epsilon, j} := \exp\left( \sigma^2_{(log)} \right) - 1$ (I think code directly specifies $\sigma^2_{\epsilon, j}$). 
+
+**C) Exposure Model.**
+$$
+\begin{aligned}
+    \boldsymbol{x}_{i} \sim f_p
+\end{aligned}
+$$
+
+#### Unnormalized Posterior ####
+TODO (Copy pasta for above for now)
+
+As above, I assume that the whole $\boldsymbol{x}_i$ vector is affected by the error. See [[#Additive normal error]] for more information.
+$$
+\begin{aligned}
+    &p(\boldsymbol{X}, \boldsymbol{\beta}, \sigma^2 \mid \boldsymbol{\tilde{X}}, \boldsymbol{y}, \boldsymbol{G})\\
+   &\propto
+\left( 
+\prod_{i=1}^{n}{
+    p(y_{i}\mid \boldsymbol{x}_{i}, \boldsymbol{\beta}, \sigma^2)
+    p(\boldsymbol{\tilde{x}}_i \mid \boldsymbol{x}_i)
+    p(\boldsymbol{x}_i)
+}
+\right)
+p(\boldsymbol{\beta})
+p(\sigma^2)
+\\
+
+&= 
+\left( 
+\prod_{i=1}^{n}{
+     \left[N(\boldsymbol{x}^T_{i}\boldsymbol{\beta}, \sigma^2)\right]
+   \left[N(\boldsymbol{x}_i, \boldsymbol{G})\right]
+   \left[f_p(\boldsymbol{x}_i)\right]
+}
+\right)
+N(\boldsymbol{0}, b^2 \boldsymbol{I}_{p \times p})
+Ga(c, d)
+\end{aligned}
+$$
+Define $\boldsymbol{z}_i = (1, \boldsymbol{x}_i)$ such that
+$$
+\begin{align*}
+\propto &
+\left(  (\sigma^2)^{-n / 2}\prod_{i=1}^{n}{
+\left[  
+    \exp\left( -\frac{1}{2\sigma^2} (y_i - \boldsymbol{z}_i^T\boldsymbol{\beta})^2 \right)
+\right]
+\left[  
+    \exp\left( -\frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i   )^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i ) \right)
+\right] 
+\left[ f_p(\boldsymbol{x}_i) \right]
+}
+\right)\\
+& \times \det(b^2 \boldsymbol{I}_{p \times p})^{-1 / 2} \exp\left( - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \right) (\sigma^2)^{c-1} \exp\left( -d \sigma^2 \right) \\
+\end{align*}
+$$
+
+The log posterior is 
+$$
+\begin{align*}
+     \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \sigma^2 \mid \boldsymbol{\tilde{x}}, \boldsymbol{y}, \boldsymbol{G})]\\
+    & \propto -\frac{n}{2} \log \sigma^2 \\
+    & + \sum_{i=1}^{n}{\left( -\frac{1}{2\sigma^2}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
+    & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
+    & + (c-1) \log \sigma^2 - d \sigma^2 \\
+\end{align*}
+$$
+To sample from real line, express the posterior in terms of $\log \sigma^2 =: \upsilon$ bzw. $\log \sigma^2_{\epsilon, j} =: \upsilon_{\epsilon, j}$.  
+Use change of variable and simply add the $\log |J|$ for each transformation (Note: Only relevant for the densities related to the variances, but express full density in terms of log variance). 
+$$
+\begin{align*}
+     \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \upsilon\mid \boldsymbol{\tilde{x}}, \boldsymbol{y}, \boldsymbol{G})]\\
+    & \propto -\frac{n}{2} \upsilon \\
+    & + \sum_{i=1}^{n}{\left( -\frac{1}{2 \exp \upsilon}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T G^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
+    & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
+    & + (c-1) \upsilon - d \exp \upsilon  \underbrace{+ \upsilon}_{+ \log |J|}\\
+\end{align*}
+$$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### Unnormalized Posterior ####
+
+
 ### ePIT error
+
+
+1. Mathematical Definition
+2. Specification of the BHM
+3. (Unnormalized) Posterior
+
+
 For this error, we make use of the empirical probability integral transform (ePIT) bzw. the empirical CDF function. @okhrinBasicElemts2017, p. 195 defines this as 
 $$
 \begin{aligned}
@@ -402,7 +555,10 @@ $$
 
 *Note: I expect that, depending on the added error, the distribution of $\tilde{x}_{ji}$ flattens compared to the original distribution. But because values cannot exceed the largest observed value, I expect a peaky behaviour towards the edges. Let's see!* :)
 
-#### Posterior ####
+
+#### Model Specification ####
+
+#### Unnormalized Posterior ####
 Instead of expressing the posterior in $x$ bzw. $\tilde{x}$, we express it in $z$ bzw. $\tilde{z}$ and re-transform out samples to $x$ because the NUTS sampler samples from the real line and we cannot be sure that $x$ allows all real values, but we know that $z$ does. 
 
 For this to work, we just use the empirical CDF and the inverse std. normal CDF to obtain $z$-values bzw. $\tilde{z}$ and add these to the design matrix such that we can use it as any covariate in our model. Given $\tilde{x}$ and the empirical CDF of $x$, this is reproducible for application after data sharing. 
@@ -430,6 +586,12 @@ Additionally, we transform the continuous proxi into the interval of $[0, 1)$ fo
 
 ### Berkson error ###
 TODO
+
+#### Mathematical Definition ####
+
+#### Model Specification ####
+
+#### Unnormalized Posterior ####
 
 
 # TODO #
