@@ -441,7 +441,7 @@ $$
     \exp\left( -\frac{1}{2\sigma^2} (y_i - \boldsymbol{z}_i^T\boldsymbol{\beta})^2 \right)
 \right]
 \left[  
-    \exp\left( -\frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i   )^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i ) \right)
+    \prod_{j=1}^{p}(\sigma_{\epsilon,j}^2x_{ij}^2)^{-\frac{1}{2}}\tilde{x}_{ij}\exp\left(-\frac{1}{2\sigma_{\epsilon,j}^2x_{ij}^2}(\log(\tilde{x}_{ij})-x_{ij})^2\right)
 \right] 
 \left[ f_p(\boldsymbol{x}_i) \right]
 }
@@ -455,7 +455,7 @@ $$
 \begin{align*}
      \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \sigma^2 \mid \boldsymbol{\tilde{x}}, \boldsymbol{y}, \boldsymbol{G})]\\
     & \propto -\frac{n}{2} \log \sigma^2 \\
-    & + \sum_{i=1}^{n}{\left( -\frac{1}{2\sigma^2}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
+    & + \sum_{i=1}^{n}{\left( -\frac{1}{2\sigma^2}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 + \sum_{j=1}^{p} \left( - \frac{1}{2}\log(\sigma_{\epsilon,j}^2x_{ij}^2)+\log(\tilde{x}_{ij})-\frac{1}{2\sigma_{\epsilon,j}^2x_{ij}^2}(\log(\tilde{x}_{ij})-x_{ij})^2\right) + \log f_p(\boldsymbol{x}_i)\right)} \\
     & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
     & + (c-1) \log \sigma^2 - d \sigma^2 \\
 \end{align*}
@@ -466,7 +466,7 @@ $$
 \begin{align*}
      \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \upsilon\mid \boldsymbol{\tilde{x}}, \boldsymbol{y}, \boldsymbol{G})]\\
     & \propto -\frac{n}{2} \upsilon \\
-    & + \sum_{i=1}^{n}{\left( -\frac{1}{2 \exp \upsilon}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T G^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
+    & + \sum_{i=1}^{n}{\left( -\frac{1}{2 \exp \upsilon}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 + \sum_{j=1}^{p} \left( - \frac{1}{2}\log(\sigma_{\epsilon,j}^2x_{ij}^2)+\log(\tilde{x}_{ij})-\frac{1}{2\sigma_{\epsilon,j}^2x_{ij}^2}(\log(\tilde{x}_{ij})-x_{ij})^2\right) + \log f_p(\boldsymbol{x}_i)\right)} \\
     & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
     & + (c-1) \upsilon - d \exp \upsilon  \underbrace{+ \upsilon}_{+ \log |J|}\\
 \end{align*}
