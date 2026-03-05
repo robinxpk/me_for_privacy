@@ -62,3 +62,13 @@ def post_log_dens_gaussian_additive(y, X, params, error_cols, error_cov_matrix, 
     log_empirical_density = mdl.logpdf(X_true.T).sum()
     ## Print statement I used to check if the empirical density actually varied. It does :) 
     return log_likelihood_term + log_measurement_error_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term 
+
+
+def post_log_dens_lognormal_multiplicative(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
+    pass
+
+def post_log_dens_epit(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
+    pass
+
+def post_log_dens_berkson(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
+    pass

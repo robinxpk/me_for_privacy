@@ -30,7 +30,8 @@ class BHM:
             inital_step_size: float = 1e-3, 
             init_sampler: callable = blackjax.nuts, 
             warmup_steps = 1_000,
-            burnin: int = 1_000,
+            # Remove burnin, as warmup implicitly is burnin already! The README and the STAN blogpost
+            burnin: int = 0,
             n_samples: int = 5_000
         ):
 
