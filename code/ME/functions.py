@@ -27,7 +27,7 @@ def post_log_dens(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl,
     return log_likelihood_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term 
 
 
-# 1 - ADD GAUSSIAN) Posterior log Density for ADDITIVE GAUSSIAN error
+# 1 - ADD NORMAL [GAUSSIAN]) Posterior log Density for ADDITIVE GAUSSIAN error
 def post_log_dens_gaussian_additive(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
     # ! The error_cov_matrix is assumed to be a diagonal matrix! The density below uses simplifications based on this assumption
     ### --- params is a dictionary containing the current value of the parameters
@@ -64,8 +64,43 @@ def post_log_dens_gaussian_additive(y, X, params, error_cols, error_cov_matrix, 
     return log_likelihood_term + log_measurement_error_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term 
 
 
+# 2 - MULT LOGNORMAL) Posterior log Density for MULTIPLICATIVE LOGNORMAL error
 def post_log_dens_lognormal_multiplicative(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
-    pass
+    # TODO: This function assumes single column affected by error FOR NOW. Extend when time!
+        # i.e. error_cov_matrix IS NOT a matrix bzw. a 1x1 matrix
+    # For details on the error_cov_matrix, see additive normal error
+
+    ### --- params is a dictionary containing the current value of the parameters
+    ### --- Assign dictionary entries to variables 
+    ### --- !! The supplied error_cov_matrix must contain the error variance of the NORMAL distribution, i.e. the variance of the LOG(error) distribution
+        # See README section on lognormal error
+    beta = params["beta"]
+    log_sigma = params["log_sigma"]
+    # To extract the true observed values, I need the design matrix only containing actual covariates, i.e. without intercept
+    X_no_intercept = X[:, 1:] 
+    X_error_cols = X_no_intercept[:, error_cols]
+    # Construct X_true based on params["X_true"] and the columns without error: 
+    # i.e. replace the columns in the design matrix which are touched by error using the sampled covariates
+    X_true = X_no_intercept.at[:, error_cols].set(params["X_true"])
+    X_true_error_cols = X_true[:, error_cols]
+
+    ### --- Identify dimensions of coefficient vector
+    # p INCLUDES INTERCEPT 
+    p = beta.shape[0]
+    n = X.shape[0]
+    X_true_with_intercept = jnp.concatenate([jnp.ones((n, 1)), X_true], axis=1)
+    eta = X_true_with_intercept @ beta
+
+    # ! Density is expressed in terms of log_sigma seen from last summand in log_sigma_prior_term
+    log_likelihood_term = -n/2 * log_sigma  - 1 / 2 * (y - eta) @ (y - eta) / jnp.exp(log_sigma) 
+    log_measurement_error_term = -n/2 * jnp.log(error_cov_matrix) \
+        - jnp.log(X_error_cols).sum() \
+        - 1/(2*error_cov_matrix) * jnp.sum( (jnp.log(X_error_cols) - jnp.log(X_true_error_cols) + 1/2 * error_cov_matrix) ** 2)
+    log_beta_prior_term = -p/2 * jnp.log(b ** 2) - 1 / (2 * b ** 2) * jnp.sum(beta ** 2)
+    log_sigma_prior_term = (c - 1) * log_sigma - d * jnp.exp(log_sigma) + log_sigma
+    log_empirical_density = mdl.logpdf(X_true.T).sum()
+    ## Print statement I used to check if the empirical density actually varied. It does :) 
+    return log_likelihood_term + log_measurement_error_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term 
 
 def post_log_dens_epit(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
     pass

@@ -21,82 +21,19 @@ import multiprocessing as mp
 # !! Make sure they are based on spawn method NOT fork!
 ctx = mp.get_context("spawn")
 
-
 from datetime import date
 rng_key = jax.random.key(int(date.today().strftime("%Y%m%d")))
 data_path = r"../data/"
 
-# %%
-#!! ------------------------------- Parameters ---------------------------------------- !!#
+#!! ------------------------------- Functions ----------------------------------------- !!#
 ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
+def single_iteration(error_name, error_variance, b): 
+    # A single interation consists of: 
+    # 1) Create a new data frame
+    # 2) Fit a naive BHM
+    # 3) Fit a BHM accounting for ME 
+    # 4) Save results in csv file
 
-# Lower sampling settings to speed up grid runs across error settings.
-frequentist_values =  jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365])
-B = 1
-n_warmup_steps = 1000
-n_burnin = 0 # implicitly in warmup
-n_samples = 100
-
-# Specify the subset of variable extracted from the full data set
-variable_subset = ["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]
-error_subset = ["DR1TKCAL"]
-# Error variances which are iterated over
-errors = ["normal", "lognormal", "ePIT"]
-error_variances_by_error = {
-    # The BHM expects a dictonary with the name of the error variance and the value. Thus, use a list of dictionaries for each error for differen error variance values
-    "normal": [
-        {"DR1TKCAL": 1},
-        {"DR1TKCAL": 2}
-    ],
-    "lognormal": [
-        {"DR1TKCAL": 1},
-        {"DR1TKCAL": 2}
-    ],
-    "epit": [
-        {"DR1TKCAL": 1},
-        {"DR1TKCAL": 2}
-    ]
-}
-# Specify the density functions to use
-corrected_post_log_dens = {
-    "normal": post_log_dens_gaussian_additive,
-    "lognormal": post_log_dens_lognormal_multiplicative,
-    "ePIT": post_log_dens_epit
-}
-
-response = "LBXT4"
-covariates = ["RIDAGEYR", "bmi", "DR1TKCAL"]
-
-
-# -1 for response variable, +1 for intercept; This is only kept for clarity
-p = len(variable_subset) - 1 + 1
-num_chains = 3
-
-# %%
-#!! ------------------------------- Load the Data ------------------------------------- !!#
-### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
-voe_data = pd.read_csv(f"{data_path}voe_data.csv", sep = ";", header = 0)
-factor_vars = (
-    # -- Survival Indicator
-    "MORTSTAT",
-    # -- Exam sample weight (combined)
-    "WTMEC4YR"
-)
-for col in factor_vars:
-    voe_data[col] = voe_data[col].astype("category")
-data = voe_data.drop("WTMEC4YR", axis = 1).dropna(ignore_index=True)[variable_subset]
-
-# %% 
-#!! ------------------------------- Specify empirical KDEs ---------------------------- !!#
-### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
-dummy_empirical_kde_mdl = KDE_Dummy_Model()
-# TODO: This is a lazy solution for an empirical KDE for now. Improve this! 
-empirical_kde_mdl = gaussian_kde(data[covariates].values.T, bw_method = "scott")
-
-# %% 
-#!! ----------------------------------------------------------------------------------- !!#
-### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
-def create_and_fit_on_one_dataset(b, error_name, error_variance): 
     # The b-th data set is uses default seed + b. Rest is either given or constant. 
     voe_data = Data(
         name = f"{error_name}_{list(error_variance.values())[0]}", 
@@ -167,33 +104,62 @@ def create_and_fit_on_one_dataset(b, error_name, error_variance):
     naive.fit()
     corrected.fit()
 
-    ## Get results
-    # Get Bias
-    abs_bias_naive = naive.mean_estimates(param_name = "beta") -  frequentist_values # jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365]))
-    rel_bias_naive = (naive.mean_estimates(param_name = "beta") - frequentist_values) / frequentist_values
-    abs_bias_corrected = corrected.mean_estimates(param_name = "beta") -  frequentist_values # jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365]))
-    rel_bias_corrected = (corrected.mean_estimates(param_name = "beta") - frequentist_values) / frequentist_values
+    ## Save results
     # Get R hat
-    rhat_beta_naive = blackjax.diagnostics.potential_scale_reduction(naive.res.position["beta"])
-    rhat_log_sigma_naive = blackjax.diagnostics.potential_scale_reduction(naive.res.position["log_sigma"])
-    rhat_beta_corrected = blackjax.diagnostics.potential_scale_reduction(corrected.res.position["beta"])
-    rhat_log_sigma_corrected = blackjax.diagnostics.potential_scale_reduction(corrected.res.position["log_sigma"])
+    naive_rhat_beta = blackjax.diagnostics.potential_scale_reduction(naive.res.position["beta"])
+    naive_rhat_log_sigma = blackjax.diagnostics.potential_scale_reduction(naive.res.position["log_sigma"])
+    corrected_rhat_beta = blackjax.diagnostics.potential_scale_reduction(corrected.res.position["beta"])
+    corrected_rhat_log_sigma = blackjax.diagnostics.potential_scale_reduction(corrected.res.position["log_sigma"])
 
-    # TODO: Save results somewhere in output files
+    # Hardcoded results. yey.
+    res = pd.DataFrame(
+        data = {
+            # Metadata
+            "error":            [error_name                                 ],
+            "error_variance":   [float(list(error_variance.values())[0])    ],
+            "b":                [int(b)                                     ],
 
-    return {
-        "error": error_name,
-        "error_variance": float(list(error_variance.values())[0]),
-        "b": int(b),
-        "abs_bias_naive": [float(x) for x in abs_bias_naive],
-        "rel_bias_naive": [float(x) for x in rel_bias_naive],
-        "abs_bias_corrected": [float(x) for x in abs_bias_corrected],
-        "rel_bias_corrected": [float(x) for x in rel_bias_corrected],
-        "rhat_beta_naive": [float(x) for x in rhat_beta_naive],
-        "rhat_log_sigma_naive": float(rhat_log_sigma_naive),
-        "rhat_beta_corrected": [float(x) for x in rhat_beta_corrected],
-        "rhat_log_sigma_corrected": float(rhat_log_sigma_corrected),
-    }
+            # Naive Model Estimates
+            "naive_beta0":      [float(naive.mean_estimates(param_name = "beta")[0])    ], 
+            "naive_beta1":      [float(naive.mean_estimates(param_name = "beta")[1])    ],
+            "naive_beta2":      [float(naive.mean_estimates(param_name = "beta")[2])    ],
+            "naive_beta3":      [float(naive.mean_estimates(param_name = "beta")[3])    ], 
+            "naive_log_sigma":  [float(naive.mean_estimates(param_name = "log_sigma"))  ], 
+
+            "naive_rhat_beta0":     [float(naive_rhat_beta[0])  ],
+            "naive_rhat_beta1":     [float(naive_rhat_beta[1])  ],
+            "naive_rhat_beta2":     [float(naive_rhat_beta[2])  ],
+            "naive_rhat_beta3":     [float(naive_rhat_beta[3])  ],
+            "naive_rhat_log_sigma": [float(naive_rhat_log_sigma)],
+
+            # Corrected Model Estimates
+            "corrected_beta0":      [float(corrected.mean_estimates(param_name = "beta")[0])    ], 
+            "corrected_beta1":      [float(corrected.mean_estimates(param_name = "beta")[1])    ],
+            "corrected_beta2":      [float(corrected.mean_estimates(param_name = "beta")[2])    ],
+            "corrected_beta3":      [float(corrected.mean_estimates(param_name = "beta")[3])    ], 
+            "corrected_log_sigma":  [float(corrected.mean_estimates(param_name = "log_sigma"))  ], 
+
+            "corrected_rhat_beta0":     [float(corrected_rhat_beta[0])  ],
+            "corrected_rhat_beta1":     [float(corrected_rhat_beta[1])  ],
+            "corrected_rhat_beta2":     [float(corrected_rhat_beta[2])  ],
+            "corrected_rhat_beta3":     [float(corrected_rhat_beta[3])  ],
+            "corrected_rhat_log_sigma": [float(corrected_rhat_log_sigma)] 
+        }
+    )
+    filename = f"{error_name}_{list(error_variance.values())[0]}_{b}.csv"
+    res.to_csv(filename, sep = ";", index = False)
+
+
+def build_args(error_name:str, error_variance:dict, B:int): 
+    # The starmap function allows to pass tuples of function inputs in the multiprocessing steps, e.g.: 
+    # pool.starmap(g, [(1, 10), (2, 20), (3, 30)])
+    # g(1, 10), g(2, 20), g(3, 30)
+    # This function builds the required tuples 
+    
+    # Output shape: 
+    # [..., (b_i, error_name, error_variance), ...] --> order in which the function single_iteration expects it
+
+    return [(error_name, error_variance, b) for b in range(B)]
 
 
 def fit_data_in_parallel(error_name, error_variance, B): 
@@ -202,22 +168,84 @@ def fit_data_in_parallel(error_name, error_variance, B):
 
     workers = min(B, max(1, os.cpu_count()) or 1)
     with ctx.Pool(processes=workers) as pool: 
-        rows = pool.map(create_and_fit_on_one_dataset, TODO)
+        args = build_args(error_name = error_name, error_variance = error_variance, B = B)
+        # Automatically writes output
+        pool.starmap(single_iteration, args)
+# %%
+#!! ------------------------------- Parameters ---------------------------------------- !!#
+### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 
-    out_dir = os.path.join(data_path, "output")
-    os.makedirs(out_dir, exist_ok=True)
-    out_file = os.path.join(out_dir, f"fit_results_{error_name}_{list(error_variance.values())[0]}.csv")
-    pd.DataFrame(rows).to_csv(out_file, index=False)
+# Lower sampling settings to speed up grid runs across error settings.
+B = 1
+n_warmup_steps = 1000
+n_burnin = 0 # implicitly in warmup; TODO: Remove burnin from BHM class anyway
+n_samples = 100
+
+# Specify the subset of variable extracted from the full data set
+variable_subset = ["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]
+error_subset = ["DR1TKCAL"]
+# Error variances which are iterated over
+errors = ["normal", "lognormal", "ePIT"]
+errors = ["normal"]
+error_variances_by_error = {
+    # The BHM expects a dictonary with the name of the error variance and the value. Thus, use a list of dictionaries for each error for differen error variance values
+    "normal": [
+        {"DR1TKCAL": 1},
+        {"DR1TKCAL": 2}
+    ],
+    # ! Supply the variance of the NORMAL distribution, i.e. variance of log(error) ~ N(mu, var) --> See README for further details
+    "lognormal": [
+        {"DR1TKCAL": 1},
+        {"DR1TKCAL": 2}
+    ],
+    "epit": [
+        {"DR1TKCAL": 1},
+        {"DR1TKCAL": 2}
+    ]
+}
+# Specify the density functions to use
+corrected_post_log_dens = {
+    "normal": post_log_dens_gaussian_additive,
+    "lognormal": post_log_dens_lognormal_multiplicative,
+    "ePIT": post_log_dens_epit
+}
+
+response = "LBXT4"
+covariates = ["RIDAGEYR", "bmi", "DR1TKCAL"]
 
 
+# -1 for response variable, +1 for intercept; This is only kept for clarity
+p = len(variable_subset) - 1 + 1
+num_chains = 3
 
-# TODO: The following is nasty. So nasty. To what degree can I parallelize? The chains will be run parallel using jax, but can I additionally parallleize the data sets?
-# TODO: Fix those for loop into parallel. Cooked.
-# For each error (3 different errors)
-for error in errors: 
-    # For each error variance within the corresponding error (2 variances each error for now)
-    for error_variance in error_variances_by_error[error]:
-        fit_data_in_parallel(error_name = error, error_variance = error_variance, B = B)
+# %%
+#!! ------------------------------- Load the Data ------------------------------------- !!#
+### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
+voe_data = pd.read_csv(f"{data_path}voe_data.csv", sep = ";", header = 0)
+factor_vars = (
+    # -- Survival Indicator
+    "MORTSTAT",
+    # -- Exam sample weight (combined)
+    "WTMEC4YR"
+)
+for col in factor_vars:
+    voe_data[col] = voe_data[col].astype("category")
+data = voe_data.drop("WTMEC4YR", axis = 1).dropna(ignore_index=True)[variable_subset]
 
+# %% 
+#!! ------------------------------- Specify empirical KDEs ---------------------------- !!#
+### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
+dummy_empirical_kde_mdl = KDE_Dummy_Model()
+# TODO: This is a lazy solution for an empirical KDE for now. Improve this! 
+empirical_kde_mdl = gaussian_kde(data[covariates].values.T, bw_method = "scott")
 
-
+# %% 
+#!! ------------------------ Fit Error Models on multiple Error Data ------------------ !!#
+### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
+if __name__ == "__main__": 
+    # For each error (3 different errors)
+    for error in errors: 
+        # For each error variance within the corresponding error (2 variances each error for now)
+        for error_variance in error_variances_by_error[error]:
+            fit_data_in_parallel(error_name = error, error_variance = error_variance, B = B)
+# %%

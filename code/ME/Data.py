@@ -80,6 +80,7 @@ class LognormalErrorModel(MeasurementErrorModel):
         n_errors = len(col)
         var = float(np.asarray(data_obj.error_vars[col.name]).item())
         mu = - var / 2
+        # Error variance is on log scale, i.e. sigma_(log) in README
         norm_error = rng.normal(loc=mu, scale=np.sqrt(var), size=n_errors)
         error = col * np.exp(norm_error)
         if col.dtype == "int64":
