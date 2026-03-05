@@ -5,6 +5,8 @@
 - [ ] Clean up Data class (later).
 - [ ] Prior (and Posterior) predictive checks (next week?).
 - [ ] Dealing with outliers: Distanz zum Datenmittelpunkt als Gewicht für die Fehlertermvarianz? (Outlook für die verschiedenen Fehlerterme)
+- [ ] Burn-in vs warmup [read this](https://statmodeling.stat.columbia.edu/2017/12/15/burn-vs-warm-iterative-simulation-algorithms/).
+- [ ] Densities nicht ganz korrekt wegen Intercept und shape von beta; hier nochmal überarbeiten (Siehe generelles Setup und Additive).
 
 - [ ] Implement varying degrees of error **including** the one error equivalent to Berkson.
 - [ ] Mit Helena über Präsentation reden.
@@ -616,9 +618,9 @@ os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false intra_op_paralleli
 ```
 - TODO: Read up on what threading in `JAX` means.
     - See ["As a result, each step is as long as the slowest chain."](https://blackjax.readthedocs.io/en/latest/examples/howto_sample_multiple_chains.html), i.e. for threads and NUTS: Chains are not run as independent workers(?). Instead, the threads basically wait for the slowest chain. So overall, the script is as slow as the slowest chain. 
-- [XLA](https://docs.jax.dev/en/latest/xla_flags.html) is "the powerhouse" of `JAX`. 
-
-
+- Accelerated Linear Algebra ([XLA](https://docs.jax.dev/en/latest/xla_flags.html)) is "the powerhouse" of `JAX`. 
+    - Set XLA flags are environment variables that influence how JAX is executed. 
+- Remove the whole burnin phase because this is already done in the STAN warmup step
 
 
 # TODO #
