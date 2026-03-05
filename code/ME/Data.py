@@ -18,21 +18,30 @@ class MeasurementErrorModel:
         raise NotImplementedError("Subclasses must implement apply_to_column(data_obj, col).")
 
 
+class NoErrorModel(MeasurementErrorModel):
+    error_type = "none"
+
+    def apply_to_column(self, data_obj, col): 
+        return col.copy()
+
+
 class EPITErrorModel(MeasurementErrorModel):
     error_type = "ePIT"
 
-    def apply_to_column(self, data_obj, col):
-        to_mask = data_obj.mask_bool[col.name]
-        col_error = col.copy()
+    def apply_to_column(self, data_obj, column_name):
+        col = data_obj.raw_data.loc[:, column_name]
+        rng = np.random.default_rng(data_obj.seed)
 
-        if col.dtype == np.dtype("float64"):
+        if np.issubdtype(col.dtype, np.number):
             ecdf = ECDF(col.values)
-            pobs = ecdf(col.values[to_mask]) * len(col) / (len(col) + 1)
+            pobs = ecdf(col.values) * len(col) / (len(col) + 1)
             pobs = np.clip(pobs, 1e-12, 1 - 1e-12)
             std_normal_obs = norm.ppf(pobs)
-            error_obs = std_normal_obs + np.random.normal(
+            var = float(np.asarray(data_obj.error_vars[column_name]).item())
+            error_obs = std_normal_obs + rng.normal(
                 loc=0,
-                scale=data_obj.error_vars[col.name][to_mask],
+                scale=np.sqrt(var),
+                size=len(col),
             )
             pobs_error = norm.cdf(error_obs)
 
@@ -41,16 +50,16 @@ class EPITErrorModel(MeasurementErrorModel):
             k = np.clip(k, 1, len(col))
 
             obs_with_error = sorted_vals[k - 1]
-            col_error[to_mask] = obs_with_error
+            col_error = obs_with_error
 
         elif col.dtype.name == "category":
             base_values = col.unique()
-            random_ints = np.random.randint(
+            random_ints = rng.integers(
                 low=0,
                 high=len(base_values),
-                size=len(col[to_mask]),
+                size=len(col),
             )
-            col_error[to_mask] = [base_values[random_draw] for random_draw in random_ints]
+            col_error = [base_values[random_draw] for random_draw in random_ints]
 
         return col_error
 
@@ -58,23 +67,24 @@ class EPITErrorModel(MeasurementErrorModel):
 class LognormalErrorModel(MeasurementErrorModel):
     error_type = "lognormal"
 
-    def apply_to_column(self, data_obj, col):
+    def apply_to_column(self, data_obj, column_name):
+        col = data_obj.raw_data.loc[:, column_name]
+
         if col.dtype.name == "category":
             return col
 
-        np.random.seed(data_obj.seed)
+        rng = np.random.default_rng(data_obj.seed)
 
-        to_mask = data_obj.mask_bool[col.name]
         col_error = col.copy()
 
-        n_errors = sum(to_mask)
-        var = np.array(data_obj.error_vars[col.name][to_mask])
-        mu = -var / 2
-        norm_error = np.random.normal(loc=mu, scale=var, size=n_errors)
-        error = col[to_mask] * np.exp(norm_error)
+        n_errors = len(col)
+        var = float(np.asarray(data_obj.error_vars[col.name]).item())
+        mu = - var / 2
+        norm_error = rng.normal(loc=mu, scale=np.sqrt(var), size=n_errors)
+        error = col * np.exp(norm_error)
         if col.dtype == "int64":
             error = np.floor(error)
-        col_error[to_mask] = error
+        col_error = error
 
         return col_error
 
@@ -82,25 +92,21 @@ class LognormalErrorModel(MeasurementErrorModel):
 class NormalErrorModel(MeasurementErrorModel):
     error_type = "normal"
 
-    def apply_to_column(self, data_obj, col):
+    def apply_to_column(self, data_obj, column_name):
+        col = data_obj.raw_data.loc[:, column_name]
+
         if col.dtype.name == "category":
             return col
 
         rng = np.random.default_rng(data_obj.seed)
-        to_mask = data_obj.mask_bool[col.name]
-        col_error = col.copy()
 
-        n_errors = sum(to_mask)
-        mu = np.zeros((n_errors,))
-        var = np.array(data_obj.error_vars[col.name][to_mask])
+        n_errors = len(col)
+        var = float(np.asarray(data_obj.error_vars[col.name]).item())
+        norm_error = rng.normal(loc=0.0, scale=np.sqrt(var), size=n_errors)
 
-        np.random.seed(data_obj.seed)
-        norm_error = np.random.normal(loc=mu, scale=var, size=n_errors)
-
-        error = col[to_mask] + norm_error
+        col_error = col + norm_error
         if col.dtype == "int64":
-            error = np.floor(error)
-        col_error[to_mask] = error
+            col_error = np.floor(col_error)
 
         if col.min() >= 0:
             negative_cases = col_error[col_error < 0]
@@ -114,29 +120,38 @@ class NormalErrorModel(MeasurementErrorModel):
 class BerksonErrorModel(MeasurementErrorModel):
     error_type = "berkson"
 
-    def apply_to_column(self, data_obj, col):
+    def apply_to_column(self, data_obj, column_name):
+        col = data_obj.raw_data.loc[:, column_name]
+
         if col.dtype.name == "category":
             return col
 
-        to_mask = data_obj.mask_bool[col.name]
         col_error = col.copy()
 
         cluster_idx = list(data_obj.prior_cluster.names).index(col.name)
         if col.dtype == "int64":
             data_obj.prior_cluster.fit.cluster_centers_[
-                data_obj.prior_cluster.fit.labels_[to_mask], cluster_idx
+                data_obj.prior_cluster.fit.labels_, cluster_idx
             ] = data_obj.prior_cluster.fit.cluster_centers_[
-                data_obj.prior_cluster.fit.labels_[to_mask], cluster_idx
+                data_obj.prior_cluster.fit.labels_, cluster_idx
             ].astype("int64")
-        col_error[to_mask] = data_obj.prior_cluster.fit.cluster_centers_[
-            data_obj.prior_cluster.fit.labels_[to_mask], cluster_idx
+        col_error = data_obj.prior_cluster.fit.cluster_centers_[
+            data_obj.prior_cluster.fit.labels_, cluster_idx
         ]
+
+        if col.name in data_obj.error_vars:
+            rng = np.random.default_rng(data_obj.seed)
+            var = float(np.asarray(data_obj.error_vars[col.name]).item())
+            col_error = col_error + rng.normal(loc=0.0, scale=np.sqrt(var), size=len(col_error))
+            if col.dtype == "int64":
+                col_error = np.floor(col_error)
 
         return col_error
 
 
 class Data:
     ERROR_MODELS = {
+        NoErrorModel.error_type: NoErrorModel,
         EPITErrorModel.error_type: EPITErrorModel,
         LognormalErrorModel.error_type: LognormalErrorModel,
         NormalErrorModel.error_type: NormalErrorModel,
@@ -145,29 +160,35 @@ class Data:
 
     def __init__(
         self,
-        name,
-        raw_data,
-        prob,
-        seed=1234,
-        error_factors=np.array([1]),
-        error_type="ePIT",
-        cluster_based=False,
-        cols_excluded_from_error=[],
+        # A name may be supplied to the data object for reference e.g. in debugging
+        name: str,
+        # The initial raw data itself
+        raw_data: pd.DataFrame,
+        # Seed for reproducibility 
+        seed:int =1234,
+        # TODO: What does error_factors do exactly? 
+        error_vars: dict = {},
+        # Type of applied error 
+        error_type:str = "none",
+        # Is the error cluster based? --> Only True for Berkson
+        cluster_based:bool = False,
+        # Specify columns that will not be touched by error
+        cols_excluded_from_error:list = []
     ):
         self.name = name
         self.seed = seed
-        self.prob = prob
         self.error_type = error_type
-        self.excluded_cols = cols_excluded_from_error
+        self.excluded_cols = raw_data.columns if error_type == "none" else cols_excluded_from_error
 
         self.raw_data = raw_data
         self.n = len(self.raw_data.index)
         self.shape = raw_data.shape
+        # Select which entries / columns of the data are touched by error
         self.mask_bool = self._create_mask_bool()
-        self.error_vars = self._draw_error_vars(error_factors=error_factors)
+        self.error_vars = error_vars
         self.error_model = self._build_error_model()
 
-        self.masked_data = None
+        self.masked_data = raw_data.copy(deep = True)
         self.cluster_based = cluster_based
         self.prior_cluster = self._assign_cluster(data=self.raw_data, type="k-means")
         self._mask_raw_data()
@@ -188,18 +209,9 @@ class Data:
 
     def _create_mask_bool(self):
         n, p = self.shape
-        rng = np.random.default_rng(self.seed)
-        bools_matrix = rng.random((n, p)) < self.prob
-        bools_df = pd.DataFrame(bools_matrix, columns=self.raw_data.columns)
+        bools_df = pd.DataFrame(np.full((n, p), True), columns=self.raw_data.columns)
         bools_df.loc[:, self.excluded_cols] = False
         return bools_df
-
-    def _draw_error_vars(self, error_factors=np.array([5])):
-        n, p = self.shape
-        rng = np.random.default_rng(self.seed)
-        error_vars = rng.choice(error_factors, size=(n, p), replace=True)
-
-        return pd.DataFrame(error_vars, columns=self.raw_data.columns)
 
     def _build_error_model(self):
         error_model_cls = self.ERROR_MODELS.get(self.error_type)
@@ -214,10 +226,9 @@ class Data:
         if self.error_type == "berkson":
             self.cluster_based = True
 
-        self.masked_data = self.raw_data.apply(
-            lambda col: self.error_model.apply_to_column(self, col),
-            axis=0,
-        )
+        # TODO: Why does this not work?
+        for column_name in self.masked_data.columns.drop(self.excluded_cols): 
+            self.masked_data.loc[:, column_name] = self.error_model.apply_to_column(data_obj = self, column_name = column_name)
 
     def _assign_cluster(self, data, type="k-means", n_neighbors=100):
         """
