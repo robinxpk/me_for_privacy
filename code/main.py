@@ -176,17 +176,17 @@ def fit_data_in_parallel(error_name, error_variance, B):
 ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 
 # Lower sampling settings to speed up grid runs across error settings.
-B = 1
-n_warmup_steps = 1000
+B = 5
+n_warmup_steps = 1_000
 n_burnin = 0 # implicitly in warmup; TODO: Remove burnin from BHM class anyway
-n_samples = 100
+n_samples = 1_000
 
 # Specify the subset of variable extracted from the full data set
 variable_subset = ["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]
 error_subset = ["DR1TKCAL"]
 # Error variances which are iterated over
 errors = ["normal", "lognormal", "ePIT"]
-errors = ["normal"]
+errors = ["normal", "lognormal"]
 error_variances_by_error = {
     # The BHM expects a dictonary with the name of the error variance and the value. Thus, use a list of dictionaries for each error for differen error variance values
     "normal": [
