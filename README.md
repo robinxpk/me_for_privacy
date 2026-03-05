@@ -333,7 +333,7 @@ All that changes compared to the [[#Additive normal error]] is the *Measurement 
 
 #### Mathematical definition of log-normal error
 ```math
-    \tilde{x}_{ij} &= x_{ij} \cdot \epsilon_{ij} \\
+\tilde{x}_{ij} &= x_{ij} \cdot \epsilon_{ij} \\
     &\text{where } \log(\epsilon_{ji}) \overset{iid.}{\sim}N\left(\mu_{(log)} , \sigma_{(log)}^2\right) \\ 
     &\leftrightarrow \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left(\exp\left[ \mu_{(log)}+ \frac{\sigma_{(log)}^2}{2} \right] , \left(\exp[\sigma^2_{(log)}]-1\right)\exp\left[ 2 \mu_{(log)}+\sigma_{(log)} \right] \right).
 ```
@@ -342,7 +342,7 @@ To have $\mathbb{E}_{ }\left[ \tilde{x}_{ij}\right] = x_{ij}$, choose $\mathbb{E
 
 This implies the simplification to
 ```math
-    \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left( 1,  \sigma^2_{\epsilon, j}\right), 
+\epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left( 1,  \sigma^2_{\epsilon, j}\right), 
 ```
 where $\sigma^2_{\epsilon}:=\exp\left( \sigma^2_{(log)} \right)-1$.
 
