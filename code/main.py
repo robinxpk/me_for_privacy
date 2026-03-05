@@ -166,7 +166,7 @@ def fit_data_in_parallel(error_name, error_variance, B):
     # TODO: Write this function such that it applies the loop in parallel and save results in an output file
     # Create a total of B data sets and fit naive as well as corrected model
 
-    workers = min(B, max(1, os.cpu_count()) or 1)
+    workers = min(B, max(1, os.cpu_count() - 4) or 1)
     with ctx.Pool(processes=workers) as pool: 
         args = build_args(error_name = error_name, error_variance = error_variance, B = B)
         # Automatically writes output
