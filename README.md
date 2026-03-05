@@ -1,17 +1,34 @@
 #### TODOs ####
-- [ ] **Note:** Allow for variable $j$ specific error variance $\sigma^{2}_{\epsilon, j}$!!, i.e. within a variable, the error variance is constant, but among variables, the error variance may differ.
-- [ ] Use all Bayesian Models (no freq as reference).
-- [ ] Fix error variance (else, not identifiable; also write note on this).
-- [ ] Write section on attenuation factor and why (thus) the measurement error variance has to be specified. (Already referenced it somewhere. lol.)
-    - [ ] Mention that, due to fixing the error variance, the model does not over-compensate.
-- [ ] Formulate section where I go into *why* this approach works and how it accounts for the high dimensionality. What is the frequentist equivalent to this?
-- [ ] Let run overnight.
-    - [ ] If **not** converges: Try error on only one of the covariates.
-- [ ] For linear model, use nhanes data only, not the voe nhanes data.
-- [ ] Clean up Data class.
-- [ ] Prior (and Posterior) predictive checks.
+- [ ] Read Literature on previous approaches for statistical disclosure control using measurement error;i.e. read ME papers (next week).
+- [ ] Prepare presentation (next week).
+- [ ] Error on all variables (next week).
+- [ ] Clean up Data class (later).
+- [ ] Prior (and Posterior) predictive checks (next week?).
+- [ ] Dealing with outliers: Distanz zum Datenmittelpunkt als Gewicht für die Fehlertermvarianz? (Outlook für die verschiedenen Fehlerterme)
 
-# Measurement for Privacy
+- [ ] Implement varying degrees of error **including** the one error equivalent to Berkson.
+- [ ] Mit Helena über Präsentation reden.
+- [ ] Umstellen der Daten auf full nhanes, nicht den alten mit nur $400$ (See GitHub Repo for Code to read in the data); WENN ZEIT.
+- [ ] Berkson Error: Hat die Clusterzurodnung (pro Variable vs. Clusterbildung über alle Variablen) einen Effekt auf die Fehlerstruktur bzw. gibt es hier falsch / richtig? (Nochmal mit Helena besprechen, was hier gemeint war) 
+
+- [ ] **Note:** Allow for variable $j$ specific error variance $\sigma^{2}_{\epsilon, j}$!!, i.e. within a variable, the error variance is constant, but among variables, the error variance may differ.
+
+--- 
+Now
+
+- [ ] Data Object is so bad, wtf... Fix this.
+- [ ] Clarify Names in Class and Code!
+- [ ] Parallelisieren.
+- [ ] Posteriors ausformulieren.
+
+- [ ] Use all Bayesian Models (no freq as reference).
+- [ ] Write note on how error variance works (i.e. on not identifiable).
+    - [ ] Write section on attenuation factor and why (thus) the measurement error variance has to be specified. (Already referenced it somewhere. lol.)
+        - [ ] Mention that, due to fixing the error variance, the model does not over-compensate.
+    - [ ] Formulate section where I go into *why* this approach works and how it accounts for the high dimensionality. What is the frequentist equivalent to this?
+- [ ] The structure of the ErrorModel object in the Data object can be greatly simplified now that the error (for sure) applies to the full column.
+
+# Measurement Error Synthetic Data
 ## Virtual Environment Setup (Conda)
 
 Based on the given `.yml`-file, create a conda environment using: 
@@ -327,6 +344,12 @@ Every variable is multiplied by a log-normally distributed random variable.
 All that changes compared to the [[#Additive normal error]] is the *Measurement Model*. For sake of completeness, I repeat specify the full model and the full posterior, but the difference is in the measurement model only! 
 
 #### Mathematical definition of log-normal error
+```math
+    \tilde{x}_{ij} &= x_{ij} \cdot \epsilon_{ij} \\
+    &\text{where } \log(\epsilon_{ji}) \overset{iid.}{\sim}N\left(\mu_{(log)} , \sigma_{(log)}^2\right) \\ 
+    &\leftrightarrow \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left(\exp\left[ \mu_{(log)}+ \frac{\sigma_{(log)}^2}{2} \right] , \left(\exp[\sigma^2_{(log)}]-1\right)\exp\left[ 2 \mu_{(log)}+\sigma_{(log)} \right] \right).
+```
+
 $$
 \begin{aligned}
     \tilde{x}_{ij} &= x_{ij} \cdot \epsilon_{ij} \\
@@ -334,6 +357,7 @@ $$
     &\leftrightarrow \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left(\exp\left[ \mu_{(log)}+ \frac{\sigma_{(log)}^2}{2} \right] , \left(\exp[\sigma^2_{(log)}]-1\right)\exp\left[ 2 \mu_{(log)}+\sigma_{(log)} \right] \right).
 \end{aligned}
 $$
+
 To have $\mathbb{E}_{ }\left[ \tilde{x}_{ij}\right] = x_{ij}$, choose $\mathbb{E}_{}\left[ \epsilon_{ij}\right] = 1$, i.e. $\mu_{(log)}= -\frac{\sigma^2_{(log)}}{2}$. 
 
 This implies the simplification to
@@ -454,33 +478,11 @@ $$
 \end{align*}
 $$
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#### Unnormalized Posterior ####
-
-
 ### ePIT error
-
 
 1. Mathematical Definition
 2. Specification of the BHM
 3. (Unnormalized) Posterior
-
 
 For this error, we make use of the empirical probability integral transform (ePIT) bzw. the empirical CDF function. @okhrinBasicElemts2017, p. 195 defines this as 
 $$
@@ -555,7 +557,6 @@ $$
 
 *Note: I expect that, depending on the added error, the distribution of $\tilde{x}_{ji}$ flattens compared to the original distribution. But because values cannot exceed the largest observed value, I expect a peaky behaviour towards the edges. Let's see!* :)
 
-
 #### Model Specification ####
 
 #### Unnormalized Posterior ####
@@ -592,6 +593,38 @@ TODO
 #### Model Specification ####
 
 #### Unnormalized Posterior ####
+
+## Implementation Notes ##
+
+### Evaluation of Bias due to ME ###
+Code: 
+- a) Iterate through each error and </br> 
+    b) (possibly) different error variances and </br> 
+    c) the $B$ data sets. 
+    - Run in parallel for sure, but worried about clash and output and all. 
+
+#### Important aspects and some reasons for why its implemented as it is ####
+- **DO NOT** use`fork` to parallelize, but `spawn`. 
+Else, the OS might struggle (deadlock). 
+    - TODO: Not sure what a deadlock is. lol.
+- Use CPU parallel only because I think the current server does not have any GPU. Also, not sure if GPU would even give that much of a speedup, because currently, the matrices are manageable. Think GPU might be more relevant if we move to more intense matrix calculation. 
+- Nested parallelism seems odd for a multitude of reasons: 
+    - Writing into file? (not actually a reason against nested parallel, but something to worry about when implementing)
+    - `JAX` is multithreaded and (somehow) already uses multiple cores. Weird, threading is not parallelizing, right? </br> 
+    Whatever. Due to this, set the threads to $1$ **BEFORE** importing **ANY** `JAX` related package. </br> 
+    This is done using `XLA_FLAGS="--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1"`. 
+Or use the following in the python script before importing jax. Within script is a temp solution IMO, because this should be dealt with in shell.
+```
+# %%
+import os
+# BEFORE important jax, set XLA flags to disable threading such that data sets can run in parallel (hopefully) without issues
+os.environ["XLA_FLAGS"] = "--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1" 
+```
+- TODO: Read up on what threading in `JAX` means.
+    - See ["As a result, each step is as long as the slowest chain."](https://blackjax.readthedocs.io/en/latest/examples/howto_sample_multiple_chains.html), i.e. for threads and NUTS: Chains are not run as independent workers(?). Instead, the threads basically wait for the slowest chain. So overall, the script is as slow as the slowest chain. 
+- [XLA](https://docs.jax.dev/en/latest/xla_flags.html) is "the powerhouse" of `JAX`. 
+
+
 
 
 # TODO #
