@@ -84,68 +84,76 @@ Body Measures: [here](https://wwwn.cdc.gov/nchs/nhanes/search/datapage.aspx?Comp
 ### Reference Model ###
 Here, $x_{j}$ refers to observed("true") values. I.e. without introducing any ME.
 1. Likelihood 
-```math
+$$
+\begin{aligned}
     y_{i, lbxt4} \mid \boldsymbol{\beta}, \sigma^2 &\sim N(\mu_i, \sigma^2)\\
     \mu_i &= \beta_0 + \beta_{age} x_{i, age} + \beta_{bmi} x_{i, bmi} + \beta_{kcal} x_{i, kcal}
-```
-
+\end{aligned}
+$$
 2. Priors
-```math
+$$
+\begin{aligned}
     \beta_j &\overset{iid.}{\sim} N(0, b^2) \text{ with given }b \\
     \sigma^2 &\sim Ga(c, d) \text{ with given }c, d
-```
-
-
+\end{aligned}
+$$
 
 Posterior: 
-```math
+$$
+\begin{aligned}
     \log(p(\beta, \sigma^2\mid \boldsymbol{y})) &\propto -\frac{n}{2}log(\sigma^2) - \frac{1}{2\sigma^2}\sum_{i=1}^{n}{(y_i - \boldsymbol{x}_i^T \boldsymbol{\beta})^2} \\
     &- \frac{1}{2b^2} \sum_{j=1}^{p}{\beta_{j}^2} + (c-1) \log(\sigma^2) - d \sigma^2 + C
-```
-
-
+\end{aligned} 
+$$
 
 ### Naive Model ###
 Model to quantify the effect of the measurement error correction: Same as above, but use the erroneous observations:
-```math
+$$
+\begin{aligned}
     y_{i, lbxt4} &\sim N(\mu_i, \sigma^2)\\
     \mu_i &= \beta_0 + \beta_{age} \tilde{x}_{i, age} + \beta_{bmi} \tilde{x}_{i, bmi} + \beta_{kcal} \tilde{x}_{i, kcal}
-```
-
-
+\end{aligned}
+$$
 Rest as above, but with $\tilde{x}_{ij}$.
 
 ### ME correction ###
 We correct for the measurement error using latent variables and separation into different sub-models. 
 #### A) Linear Model ####
 Simple linear model (Connects exposure und covariates, $p(y|x)$): 
-
-```math
+$$
+\begin{aligned}
     y_{lbxt4} &\sim N(\mu, \sigma^2)\\
     \mu &= \beta_0+ \beta_{age} x_{age} + \beta_{bmi} x_{bmi} + \beta_{kcal} x_{kcal} \\
-```
+
+\end{aligned}
+$$
 Priors
-```math
+$$
+\begin{aligned}
     \beta_j &\overset{iid.}{\sim} N(0, b^2) \text{ with given }b \\
     \sigma^2 &\sim Ga(c, d) \text{ with given }c, d
-```
-
+\end{aligned}
+$$
 Same all linear models above. Note that this model uses the *true* values of the covariates $x_{ij}$. 
 #### B) Measurement Model ####
 This model specifies how the measurement error is applied to the true values. 
 **Important:** The (true) value of the error variance $\sigma^2_{\epsilon}$ must be supplied to the sampler. Else, the problem is not identifiable (See [[#Attenuation Factor]])! 
 
 e.g.: Gaussian, additive error:
-```math
+$$
+\begin{aligned}
     \tilde{x}_{ij} &= x_{ij} + \epsilon_{ij} \text{ where } \epsilon \sim N(0, \sigma^2_{\epsilon}), 
-```
+\end{aligned}
+$$
 where $\sigma^2_{\epsilon}$ is known.
 
 #### C) Exposure Model ####
 Finally, the exposure models specifies the distribution of the true values themselves, i.e. distributional assumptions on latent (true) variable $x$. 
-```math
+$$
+\begin{aligned}
     x_{ij} \sim F_p
-```
+\end{aligned}
+$$
 
 **Important.** Assume a reasonable distribution $F_p$ here. Else, the corrected values may be biased, too. 
 For now, we can use the empirical density of the original variable (where "original" refers to the variable without error); </br> 
@@ -154,9 +162,11 @@ TODO: This might be too much information published, but maybe not?
 - How problematic is a publication of the error-free data distribution? 
 
 #### Likelihood ####
-```math
+$$
+\begin{aligned}
     p(\boldsymbol{\beta}, \boldsymbol{X}, \sigma| y, \boldsymbol{\tilde{X}}, \sigma^2_{\epsilon}) \propto p(\sigma^2)p(\boldsymbol{\beta})\prod_{i=1}^{n}{p(y_i|\boldsymbol{\beta}, \boldsymbol{x}_i, \sigma^2) p(\boldsymbol{\tilde{x_i}}|\boldsymbol{x_i}, \sigma_\epsilon^2)}p(\boldsymbol{x_i})
-```
+\end{aligned}
+$$
 
 Für priors: 
 1. Normalverteilung mit hoher Varianz 
@@ -327,59 +337,76 @@ $$
 $$
 
 ### Multiplicative log-normal error
+
+
 Every variable is multiplied by a log-normally distributed random variable. 
 
 All that changes compared to the [[#Additive normal error]] is the *Measurement Model*. For sake of completeness, I repeat specify the full model and the full posterior, but the difference is in the measurement model only! 
 
 #### Mathematical definition of log-normal error
-```math
-\tilde{x}_{ij} &= x_{ij} \cdot \epsilon_{ij} \\
+$$
+\begin{aligned}
+    \tilde{x}_{ij} &= x_{ij} \cdot \epsilon_{ij} \\
     &\text{where } \log(\epsilon_{ji}) \overset{iid.}{\sim}N\left(\mu_{(log)} , \sigma_{(log)}^2\right) \\ 
     &\leftrightarrow \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left(\exp\left[ \mu_{(log)}+ \frac{\sigma_{(log)}^2}{2} \right] , \left(\exp[\sigma^2_{(log)}]-1\right)\exp\left[ 2 \mu_{(log)}+\sigma_{(log)} \right] \right).
-```
+\end{aligned}
+$$
 
 To have $\mathbb{E}_{ }\left[ \tilde{x}_{ij}\right] = x_{ij}$, choose $\mathbb{E}_{}\left[ \epsilon_{ij}\right] = 1$, i.e. $\mu_{(log)}= -\frac{\sigma^2_{(log)}}{2}$. 
 
 This implies the simplification to
-```math
-\epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left( 1,  \sigma^2_{\epsilon, j}\right), 
-```
+$$
+\begin{aligned}
+    \epsilon_{ij} \overset{iid.}{\sim} \text{Lognormal}\left( 1,  \sigma^2_{\epsilon, j}\right), 
+\end{aligned}
+$$
 where $\sigma^2_{\epsilon}:=\exp\left( \sigma^2_{(log)} \right)-1$.
 
 This gives
-```math
+$$
+\begin{aligned}
     \tilde{x}_{ij} \mid x_{ij} \sim \text{Lognormal}\left( x_{ij}, \sigma^2_{\epsilon, j}x_{ij}^2 \right).
-```
+\end{aligned}
+$$
 
 #### Model Specification ####
 **A) Linear Model**. 
 Likelihood
-```math
+$$
+\begin{aligned}
     y_{i, lbxt4} &\sim N(\mu_i, \sigma^2)\\
     \mu_i &= \beta_0 + \beta_{age} x_{i, age} + \beta_{bmi} x_{i, bmi} + \beta_{kcal} x_{i, kcal},
-```
+\end{aligned}
+$$
 with
-```math
+$$
+\begin{aligned}
     \boldsymbol{\beta} &\sim  N(\boldsymbol{0}, b^2 \boldsymbol{I}_{p \times p}) \text{ with given }b, \\
     \sigma^2 &\sim Ga(c, d) \text{ with given }c, d. 
-```
+\end{aligned}
+$$
 
 **B) Measurement Model.** </br> 
-```math
+$$
+\begin{aligned}
     \tilde{x}_{ij} \mid x_{ij} \sim \text{Lognormal}\left(x_{ij}, \sigma^2_{\epsilon, j}x_{ij}^2 \right), 
-```
+\end{aligned}
+$$
 As above: To be identifiable, I need to specify the measurement error variance $\sigma^2_{(log)}$ which translates into $\sigma^2_{\epsilon, j} := \exp\left( \sigma^2_{(log)} \right) - 1$ (I think code directly specifies $\sigma^2_{\epsilon, j}$). 
 
 **C) Exposure Model.**
-```math
+$$
+\begin{aligned}
     \boldsymbol{x}_{i} \sim f_p
-```
+\end{aligned}
+$$
 
 #### Unnormalized Posterior ####
 TODO (Copy pasta for above for now)
 
 As above, I assume that the whole $\boldsymbol{x}_i$ vector is affected by the error. See [[#Additive normal error]] for more information.
-```math
+$$
+\begin{aligned}
     &p(\boldsymbol{X}, \boldsymbol{\beta}, \sigma^2 \mid \boldsymbol{\tilde{X}}, \boldsymbol{y}, \boldsymbol{G})\\
    &\propto
 \left( 
@@ -403,9 +430,11 @@ p(\sigma^2)
 \right)
 N(\boldsymbol{0}, b^2 \boldsymbol{I}_{p \times p})
 Ga(c, d)
-```
+\end{aligned}
+$$
 Define $\boldsymbol{z}_i = (1, \boldsymbol{x}_i)$ such that
-```math
+$$
+\begin{align*}
 \propto &
 \left(  (\sigma^2)^{-n / 2}\prod_{i=1}^{n}{
 \left[  
@@ -418,25 +447,30 @@ Define $\boldsymbol{z}_i = (1, \boldsymbol{x}_i)$ such that
 }
 \right)\\
 & \times \det(b^2 \boldsymbol{I}_{p \times p})^{-1 / 2} \exp\left( - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \right) (\sigma^2)^{c-1} \exp\left( -d \sigma^2 \right) \\
-```
+\end{align*}
+$$
 
 The log posterior is 
-```math
+$$
+\begin{align*}
      \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \sigma^2 \mid \boldsymbol{\tilde{x}}, \boldsymbol{y}, \boldsymbol{G})]\\
     & \propto -\frac{n}{2} \log \sigma^2 \\
     & + \sum_{i=1}^{n}{\left( -\frac{1}{2\sigma^2}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T \boldsymbol{G}^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
     & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
     & + (c-1) \log \sigma^2 - d \sigma^2 \\
-```
+\end{align*}
+$$
 To sample from real line, express the posterior in terms of $\log \sigma^2 =: \upsilon$ bzw. $\log \sigma^2_{\epsilon, j} =: \upsilon_{\epsilon, j}$.  
 Use change of variable and simply add the $\log |J|$ for each transformation (Note: Only relevant for the densities related to the variances, but express full density in terms of log variance). 
-```math
+$$
+\begin{align*}
      \log & [p(\boldsymbol{x}, \boldsymbol{\beta}, \upsilon\mid \boldsymbol{\tilde{x}}, \boldsymbol{y}, \boldsymbol{G})]\\
     & \propto -\frac{n}{2} \upsilon \\
     & + \sum_{i=1}^{n}{\left( -\frac{1}{2 \exp \upsilon}(y_i - \boldsymbol{z}_i^T \boldsymbol{\beta})^2 - \frac{1}{2} (\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i)^T G^{-1}(\boldsymbol{\tilde{x}}_i - \boldsymbol{x}_i) + \log f_p(\boldsymbol{x}_i)\right)} \\
     & - \frac{p}{2} \log b^2 - \frac{1}{2b^2} \boldsymbol{\beta}^T \boldsymbol{\beta} \\
     & + (c-1) \upsilon - d \exp \upsilon  \underbrace{+ \upsilon}_{+ \log |J|}\\
-```
+\end{align*}
+$$
 
 ### ePIT error
 
