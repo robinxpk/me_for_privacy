@@ -9,7 +9,7 @@ import pandas as pd
 from ME.BHM import BHM
 from ME.KDE import KDE_Dummy_Model
 from ME.Data import Data
-from ME.functions import post_log_dens, post_log_dens_gaussian_additive, post_log_dens_lognormal_multiplicative
+from ME.functions import post_log_dens, post_log_dens_gaussian_additive, post_log_dens_lognormal_multiplicative, post_log_dens_epit
 
 from datetime import date
 rng_key = jax.random.key(int(date.today().strftime("%Y%m%d")))
@@ -126,24 +126,39 @@ mdl = gaussian_kde(data.loc[:, covariates].values.T, bw_method = "scott")
 # ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 # Create the data with additive Gaussian error. 
 # !!! To supply the normal_sd to JAX, it must be a FLOAT!
-lognormal_var = 2.
-voe_normal= Data(
-    name = f"lognormal_{lognormal_var}", 
+error_var = 4
+def e_sigmoid(x, b0 = -30, b1 = 4): 
+    # ! Need to supply the sigmoid to the DATA object because I need this to already use THIS function for ePIT construction
+    # Else, the function in the error correction is not the same as the error function. Basically.
+    # MODELLING THE LOG OF THE INPUT VARIABLE!! 
+    lin_mdl = b0 + b1 * jnp.log(x)
+    return jax.nn.sigmoid(lin_mdl)
+def e_inv_sigmoid(prob, b0 = -30, b1 = 4): 
+    # Input is value(s) between 0 and 1
+    # These inputs should be based on the previous e_sigmoid function 
+    # !!! SEEN FROM ABOVE, to obtain x, we need to inverse the log! 
+    log_odds = jnp.log(prob / (1 - prob)) 
+    return jnp.exp((log_odds - b0) / b1) # log_odds = lin_mdl which we have to solve for x
+
+voe_error= Data(
+    name = f"epit_{error_var}", 
     raw_data = voe_data.dropna(ignore_index = True), 
     seed = 1234,
-    error_vars = {"DR1TKCAL": jnp.array([lognormal_var])}, 
-    error_type="lognormal", 
+    error_vars = {"DR1TKCAL": jnp.array([error_var])}, 
+    error_type="ePIT", 
     # Exclude the error on age and bmi for now to simplify the error structure
-    cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
+    cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"],
+    e_sigmoid = e_sigmoid, 
+    e_inv_sigmoid = e_inv_sigmoid
 )
 
 # %%
-# #!! -------------------------- Fit Native Model --------------------------------------- !!#
+# #!! -------------------------- Fit Naive Model --------------------------------------- !!#
 # ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 
 # Naive Bayesian model NOT accounting for error; Parameters used as in model fit to compare to frequentistic OLS estimates
 naive = BHM(
-    data = voe_normal.masked_data[["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]],
+    data = voe_error.masked_data[["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]],
     response = "LBXT4",
     error_cols = [],
     covariates = ["RIDAGEYR", "bmi", "DR1TKCAL"],
@@ -180,7 +195,7 @@ print("Relative Bias: ", (naive.mean_estimates(param_name = "beta") - frequentis
 # ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 # To express the density for the measurement model as multivariate Gaussian, I need the covariance matrix, which is diagonal with the error variances on the diagonal. The error variances are the same across rows, but differ across covariates.
 # Need to provide the (true) measurement variance. Decided to use a matrix to keep it flexible for different variances across covariates.
-error_cov_matrix = jnp.diag(jnp.array([lognormal_var])) # --> Working with only one error-affected covariate for now such that this is a scalar, but stick with the duck.
+error_cov_matrix = jnp.diag(jnp.array([error_var])) # --> Working with only one error-affected covariate for now such that this is a scalar, but stick with the duck.
 
 corrected = BHM(
     data = data, 
@@ -189,7 +204,7 @@ corrected = BHM(
     # JAX does not allow me to pass error_cols as string to index the column in the design matrix touched by error. 
     # Because internally, the design matrix is a jnp array and not a dataframe, I need to pass the column index instead of the column name.
     error_cols = ["DR1TKCAL"], 
-    post_log_dens = post_log_dens_lognormal_multiplicative,
+    post_log_dens = post_log_dens_epit,
     hyperparams = {
         "b": 100, # TODO: Depends on scale, of course. e.g. age reaches up to 80, calories reach up to 4k, bmi reaches up to 40; this is the SD of the posterior
         "c": 1,
@@ -214,7 +229,9 @@ corrected = BHM(
     num_chains = num_chains,
     inital_step_size = 1e-3, 
     warmup_steps = 100, 
-    n_samples = 100 
+    n_samples = 100, 
+    e_sigmoid = e_sigmoid, 
+    e_inv_sigmoid = e_inv_sigmoid
 )
 corrected.fit()
 corrected.viz_chains(param_name = "beta")

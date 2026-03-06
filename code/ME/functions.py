@@ -8,7 +8,7 @@ import jax
 ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 
 # 0 - NAIVE) Posterior log Density for model WITHOUT measurement error / the NAIVE model
-def post_log_dens(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl, b, c, d):
+def post_log_dens(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl, sigmoid_dummy, inv_sigmoid_dummy, b, c, d):
     ### --- params is a dictionary containing the current value of the parameters
     ### --- Assign dictionary entries to variables 
     beta = params["beta"]
@@ -28,7 +28,7 @@ def post_log_dens(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl,
 
 
 # 1 - ADD NORMAL [GAUSSIAN]) Posterior log Density for ADDITIVE GAUSSIAN error
-def post_log_dens_gaussian_additive(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
+def post_log_dens_gaussian_additive(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl, sigmoid_dummy, inv_sigmoid_dummy, b, c, d,):
     # ! The error_cov_matrix is assumed to be a diagonal matrix! The density below uses simplifications based on this assumption
     ### --- params is a dictionary containing the current value of the parameters
     ### --- Assign dictionary entries to variables 
@@ -59,13 +59,13 @@ def post_log_dens_gaussian_additive(y, X, params, error_cols, error_cov_matrix, 
     log_measurement_error_term = - 1 / 2 * (X_error_cols - X_true_error_cols)**2 @ jnp.linalg.inv(error_cov_matrix).sum(axis = 1)
     log_beta_prior_term = - p / 2 * jnp.log(b ** 2) - 1 / (2 * b ** 2) * jnp.sum(beta ** 2)
     log_sigma_prior_term = (c - 1) * log_sigma - d * jnp.exp(log_sigma) + log_sigma
-    log_empirical_density = mdl.logpdf(X_true.T).sum()
+    log_empirical_density = empirical_kde_mdl.logpdf(X_true.T).sum()
     ## Print statement I used to check if the empirical density actually varied. It does :) 
     return log_likelihood_term + log_measurement_error_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term 
 
 
 # 2 - MULT LOGNORMAL) Posterior log Density for MULTIPLICATIVE LOGNORMAL error
-def post_log_dens_lognormal_multiplicative(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
+def post_log_dens_lognormal_multiplicative(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl, sigmoid_dummy, inv_sigmoid_dummy, b, c, d,):
     # TODO: This function assumes single column affected by error FOR NOW. Extend when time!
         # i.e. error_cov_matrix IS NOT a matrix bzw. a 1x1 matrix
     # For details on the error_cov_matrix, see additive normal error
@@ -98,12 +98,12 @@ def post_log_dens_lognormal_multiplicative(y, X, params, error_cols, error_cov_m
         - 1/(2*error_cov_matrix) * jnp.sum( (jnp.log(X_error_cols) - jnp.log(X_true_error_cols) + 1/2 * error_cov_matrix) ** 2)
     log_beta_prior_term = -p/2 * jnp.log(b ** 2) - 1 / (2 * b ** 2) * jnp.sum(beta ** 2)
     log_sigma_prior_term = (c - 1) * log_sigma - d * jnp.exp(log_sigma) + log_sigma
-    log_empirical_density = mdl.logpdf(X_true.T).sum()
+    log_empirical_density = empirical_kde_mdl.logpdf(X_true.T).sum()
     ## Print statement I used to check if the empirical density actually varied. It does :) 
     return log_likelihood_term + log_measurement_error_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term 
 
-def post_log_dens_epit(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
+def post_log_dens_epit(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl, sigmoid, inv_sigmoid, b, c, d,):
     pass
 
-def post_log_dens_berkson(y, X, params, error_cols, error_cov_matrix, mdl, b, c, d,):
+def post_log_dens_berkson(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl, b, c, d,):
     pass

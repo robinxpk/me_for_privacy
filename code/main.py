@@ -171,6 +171,27 @@ def fit_data_in_parallel(error_name, error_variance, B):
         args = build_args(error_name = error_name, error_variance = error_variance, B = B)
         # Automatically writes output
         pool.starmap(single_iteration, args)
+    
+### Section implementing the super random sigmoid function I decided to use to proxi the empirical cdf to have continuous and and nice proxi und alles
+# Estimates: 
+# beta_0 = -30 
+# beta_1 = 4
+# --> See R (load_data.R script; at the bottom of the file) Nice mess of files now. 
+# TODO: Clean up the file mess. lel.
+def e_sigmoid(x, b0 = -30, b1 = 4): 
+    # ! Need to supply the sigmoid to the DATA object because I need this to already use THIS function for ePIT construction
+    # Else, the function in the error correction is not the same as the error function. Basically.
+    # MODELLING THE LOG OF THE INPUT VARIABLE!! 
+    lin_mdl = b0 + b1 * jnp.log(x)
+    return jax.nn.sigmoid(lin_mdl)
+def e_inv_sigmoid(prob, b0 = -30, b1 = 4): 
+    # Input is value(s) between 0 and 1
+    # These inputs should be based on the previous e_sigmoid function 
+    # !!! SEEN FROM ABOVE, to obtain x, we need to inverse the log! 
+    log_odds = jnp.log(prob / (1 - prob)) 
+    return jnp.exp((log_odds - b0) / b1) # log_odds = lin_mdl which we have to solve for x
+
+
 # %%
 #!! ------------------------------- Parameters ---------------------------------------- !!#
 ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
@@ -186,7 +207,7 @@ variable_subset = ["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]
 error_subset = ["DR1TKCAL"]
 # Error variances which are iterated over
 errors = ["normal", "lognormal", "ePIT"]
-errors = ["normal", "lognormal"]
+errors = ["lognormal"]
 error_variances_by_error = {
     # The BHM expects a dictonary with the name of the error variance and the value. Thus, use a list of dictionaries for each error for differen error variance values
     "normal": [

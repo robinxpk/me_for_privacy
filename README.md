@@ -1,4 +1,5 @@
 #### TODOs ####
+- [ ] Potentially change sampler to not be forced to have derivatives; especially for ePIT: Could use eCDF and would not need invertible and continuous proxi of CDF (using sigmoid as of now).
 - [ ] lognormal density assumes single error variance, i.e. only one column touched by error; Extend logic to work with vectors.
 - [ ] Posterior as object? Can create one parent an inherit from that because likelihood and all (so far) is the same among error types. 
 - [ ] Read Literature on previous approaches for statistical disclosure control using measurement error;i.e. read ME papers (next week).
@@ -740,6 +741,24 @@ $$
 
 
 #### Continuous Rank Transformation ####
+For `JAX` to be happy, I need an invertible and differentiable function within the  ePIT calculation step.In other words, $\hat{F}$ needs to be continuous and invertible. I know that `JAX` has some `sigmoid` and its inverse implemented. Thus, I can fit a logit model, extract the parameters and have an invertible and continuous proxi of the eCDF (right?; While not accounting for any uncertainty. But nor do pobs - which are not a proxi. lol).
+
+Following uses the `DR1TKCAL` column of the `voe_data` with $405$ observations. 
+1. Visualize the empirical CDF: 
+Use the definition of the empirical CDF to just plot it with `kcal` on the x-axis. 
+
+2. I have one data point per obs which is basically my "empirical sigmoid". 
+I just apply the inverse of the actual sigmoid to obtain the "linear predictor" to which I fit a linear regression. Then I obtain the $\beta$s to describe the sigmoid. 
+
+3. Use sigmoid and its inverse to obtain pobs and use it in the NUTS to transform observations. 
+    - Seems to work! Specified the sigmoid and inverse sigmoid functions. 
+
+
+
+---
+
+The following was fun, but is garbage: 
+
 To ease the application of **change of variable**, we thought of a continuous expression for the empirical CDF. 
 $$
 \begin{aligned}
@@ -759,6 +778,7 @@ Additionally, we transform the continuous proxi into the interval of $[0, 1)$ fo
 
 ### ePIT error
 - Could I avoid sharing the true distribution of the variables $x$ and instead share the distribution of variables $z$? Then the information about the empirical density itself is contained in the transformation, but one cannot backtrack to the original values? Because that would require the actual empirical density? 
+
 
 
 

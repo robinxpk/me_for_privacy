@@ -1,3 +1,4 @@
+library(ggplot2)
 # Following data obtained from paper's github: https://github.com/chiragjp/voe
 load("../data/nhanes9904_VoE.Rdata")
 
@@ -96,3 +97,52 @@ write.table(
 )
 
 
+# -- Fitting a lin model on "sigmoid" data. lol.
+## Creating sigmoid data frame to ease working with the data
+sdf = dat |> 
+    dplyr::arrange(DR1TKCAL) |> 
+    dplyr::select(DR1TKCAL) |> 
+    dplyr::mutate(
+        # eCDF I refer to as sigmoid
+        e_sigmoid = dplyr::row_number() / (nrow(dat) + 1), 
+        # Inverse the empirical sigmoid to obtain the "linear predictor"
+        e_lin = log(e_sigmoid / (1 - e_sigmoid))
+    )
+sdf |> 
+    ggplot(aes(x = DR1TKCAL, y =  e_sigmoid)) + 
+    geom_step()
+
+sdf |> 
+    ggplot(aes(x = DR1TKCAL, y = e_lin)) + 
+    geom_step()
+
+
+lin_mdl = lm(e_lin ~ log(DR1TKCAL), dat = sdf)
+# Check fit
+sdf$pred = predict(lin_mdl, newdata = sdf)
+
+sdf |> 
+    ggplot(aes(x = DR1TKCAL)) + 
+    geom_step(aes(y = e_lin)) + 
+    geom_line(aes(y = pred))
+
+# Compare this to the eCDF / e_sigmoid data
+sdf = sdf |> 
+    dplyr::mutate(
+        pred_sigmoid = 1 / (1 + exp(-pred)) 
+    )
+
+sdf |> 
+    ggplot(aes(x = DR1TKCAL)) + 
+    geom_step(aes(y = e_sigmoid)) + 
+    geom_line(aes(y = pred_sigmoid), color = "red")
+
+# Fit looks decent? 
+# Just double checking the linear model to ensure that moving this to jax would work out. Roughly. 
+lm_func = function(x) -30 + 4 * log(x)
+sdf$compare_pred = lm_func(sdf$DR1TKCAL)
+sdf |> 
+    ggplot(aes(x = pred, y = compare_pred)) + 
+    geom_point()
+
+# Lets go :D 

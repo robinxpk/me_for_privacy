@@ -11,8 +11,11 @@ from sklearn.preprocessing import StandardScaler
 
 class MeasurementErrorModel:
     """Base class for measurement error models."""
-
     error_type = "base"
+
+    def __init__(self, sigmoid, inv_sigmoid): 
+        self.sigmoid = sigmoid 
+        self.inv_sigmoid = inv_sigmoid
 
     def apply_to_column(self, data_obj, col):
         raise NotImplementedError("Subclasses must implement apply_to_column(data_obj, col).")
@@ -21,6 +24,13 @@ class MeasurementErrorModel:
 class NoErrorModel(MeasurementErrorModel):
     error_type = "none"
 
+    def __init__(
+            self, 
+            sigmoid, # Dummy, not used
+            inv_sigmoid # Dummy, not used
+        ): 
+        super().__init__(sigmoid = None, inv_sigmoid = None)
+
     def apply_to_column(self, data_obj, col): 
         return col.copy()
 
@@ -28,14 +38,17 @@ class NoErrorModel(MeasurementErrorModel):
 class EPITErrorModel(MeasurementErrorModel):
     error_type = "ePIT"
 
+    def __init__(self, sigmoid, inv_sigmoid): 
+        super().__init__(sigmoid = sigmoid, inv_sigmoid = inv_sigmoid)
+
     def apply_to_column(self, data_obj, column_name):
         col = data_obj.raw_data.loc[:, column_name]
+        # assert self.sigmoid(col.values) is None 
+
         rng = np.random.default_rng(data_obj.seed)
 
         if np.issubdtype(col.dtype, np.number):
-            ecdf = ECDF(col.values)
-            pobs = ecdf(col.values) * len(col) / (len(col) + 1)
-            pobs = np.clip(pobs, 1e-12, 1 - 1e-12)
+            pobs = self.sigmoid(col.values)
             std_normal_obs = norm.ppf(pobs)
             var = float(np.asarray(data_obj.error_vars[column_name]).item())
             error_obs = std_normal_obs + rng.normal(
@@ -45,12 +58,13 @@ class EPITErrorModel(MeasurementErrorModel):
             )
             pobs_error = norm.cdf(error_obs)
 
-            sorted_vals = np.sort(col.values)
-            k = np.floor(pobs_error * (len(col) + 1.0)).astype(int)
-            k = np.clip(k, 1, len(col))
+            col_error = self.inv_sigmoid(pobs_error)
 
-            obs_with_error = sorted_vals[k - 1]
-            col_error = obs_with_error
+            # sorted_vals = np.sort(col.values)
+            # k = np.floor(pobs_error * (len(col) + 1.0)).astype(int)
+            # k = np.clip(k, 1, len(col))
+            # obs_with_error = sorted_vals[k - 1]
+            # col_error = obs_with_error
 
         elif col.dtype.name == "category":
             base_values = col.unique()
@@ -66,6 +80,13 @@ class EPITErrorModel(MeasurementErrorModel):
 
 class LognormalErrorModel(MeasurementErrorModel):
     error_type = "lognormal"
+
+    def __init__(
+            self, 
+            sigmoid, # Dummy, not used
+            inv_sigmoid # Dummy, not used
+        ): 
+        super().__init__(sigmoid = None, inv_sigmoid = None)
 
     def apply_to_column(self, data_obj, column_name):
         col = data_obj.raw_data.loc[:, column_name]
@@ -92,6 +113,13 @@ class LognormalErrorModel(MeasurementErrorModel):
 
 class NormalErrorModel(MeasurementErrorModel):
     error_type = "normal"
+
+    def __init__(
+            self, 
+            sigmoid, # Dummy, not used
+            inv_sigmoid # Dummy, not used
+        ): 
+        super().__init__(sigmoid = None, inv_sigmoid = None)
 
     def apply_to_column(self, data_obj, column_name):
         col = data_obj.raw_data.loc[:, column_name]
@@ -120,6 +148,13 @@ class NormalErrorModel(MeasurementErrorModel):
 
 class BerksonErrorModel(MeasurementErrorModel):
     error_type = "berkson"
+
+    def __init__(
+            self, 
+            sigmoid, # Dummy, not used
+            inv_sigmoid # Dummy, not used
+        ): 
+        super().__init__(sigmoid = None, inv_sigmoid = None)
 
     def apply_to_column(self, data_obj, column_name):
         col = data_obj.raw_data.loc[:, column_name]
@@ -174,12 +209,17 @@ class Data:
         # Is the error cluster based? --> Only True for Berkson
         cluster_based:bool = False,
         # Specify columns that will not be touched by error
-        cols_excluded_from_error:list = []
+        cols_excluded_from_error:list = [],
+        e_sigmoid: callable = lambda _: None, 
+        e_inv_sigmoid: callable = lambda _: None,
     ):
         self.name = name
         self.seed = seed
         self.error_type = error_type
         self.excluded_cols = raw_data.columns if error_type == "none" else cols_excluded_from_error
+
+        self.sigmoid = e_sigmoid 
+        self.inv_sigmoid = e_inv_sigmoid
 
         self.raw_data = raw_data
         self.n = len(self.raw_data.index)
@@ -221,7 +261,7 @@ class Data:
             raise ValueError(
                 f"Unknown error_type '{self.error_type}'. Available error types: {available}."
             )
-        return error_model_cls()
+        return error_model_cls(sigmoid = self.sigmoid, inv_sigmoid = self.inv_sigmoid)
 
     def _mask_raw_data(self):
         if self.error_type == "berkson":
