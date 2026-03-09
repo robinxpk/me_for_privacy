@@ -1,4 +1,5 @@
 #### TODOs ####
+- [ ] Raphael hat mit masked arrays oder so gearbeitet. Die Matritzen kombinieren die Information über Fehlerspalten und Werte. Klingt besser. 
 - [ ] Potentially change sampler to not be forced to have derivatives; especially for ePIT: Could use eCDF and would not need invertible and continuous proxi of CDF (using sigmoid as of now).
 - [ ] lognormal density assumes single error variance, i.e. only one column touched by error; Extend logic to work with vectors.
 - [ ] Posterior as object? Can create one parent an inherit from that because likelihood and all (so far) is the same among error types. 

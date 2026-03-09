@@ -48,23 +48,22 @@ class EPITErrorModel(MeasurementErrorModel):
         rng = np.random.default_rng(data_obj.seed)
 
         if np.issubdtype(col.dtype, np.number):
+            # Apply sigmoid / (fitted) eCDF / F_hat --> obs in [0, 1]
             pobs = self.sigmoid(col.values)
+            # Apply inverse std. Gaussian --> Psi^{-1} to obtain z
             std_normal_obs = norm.ppf(pobs)
+            # Add error --> z to tilde(z)
             var = float(np.asarray(data_obj.error_vars[column_name]).item())
             error_obs = std_normal_obs + rng.normal(
                 loc=0,
                 scale=np.sqrt(var),
                 size=len(col),
             )
+            
+            # Based on tile(z), return tilde(x)
             pobs_error = norm.cdf(error_obs)
 
             col_error = self.inv_sigmoid(pobs_error)
-
-            # sorted_vals = np.sort(col.values)
-            # k = np.floor(pobs_error * (len(col) + 1.0)).astype(int)
-            # k = np.clip(k, 1, len(col))
-            # obs_with_error = sorted_vals[k - 1]
-            # col_error = obs_with_error
 
         elif col.dtype.name == "category":
             base_values = col.unique()

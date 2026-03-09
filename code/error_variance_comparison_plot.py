@@ -67,6 +67,18 @@ for normal_sd_factor in np.arange(0, 1, 0.1):
 
 plot_df_normal = pd.DataFrame(records_normal).T.sort_index().assign(origin = "normal")
 # %%
+def e_sigmoid(x, b0 = -30, b1 = 4): 
+    # ! Need to supply the sigmoid to the DATA object because I need this to already use THIS function for ePIT construction
+    # Else, the function in the error correction is not the same as the error function. Basically.
+    # MODELLING THE LOG OF THE INPUT VARIABLE!! 
+    lin_mdl = b0 + b1 * jnp.log(x)
+    return jax.nn.sigmoid(lin_mdl)
+def e_inv_sigmoid(prob, b0 = -30, b1 = 4): 
+    # Input is value(s) between 0 and 1
+    # These inputs should be based on the previous e_sigmoid function 
+    # !!! SEEN FROM ABOVE, to obtain x, we need to inverse the log! 
+    log_odds = jnp.log(prob / (1 - prob)) 
+    return jnp.exp((log_odds - b0) / b1) # log_odds = lin_mdl which we have to solve for x
 records_epit= dict()
 for epit_var in np.arange(0, 1, 0.1):
     records_epit[epit_var] = [
@@ -76,7 +88,9 @@ for epit_var in np.arange(0, 1, 0.1):
             seed = 1234 + b,
             error_vars = {"DR1TKCAL": epit_var}, 
             error_type = "ePIT",
-            cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
+            cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"], 
+            e_sigmoid = e_sigmoid, 
+            e_inv_sigmoid = e_inv_sigmoid
         ).error_evaluation[error_subset]
         for b in range(B)
     ]
@@ -123,6 +137,16 @@ plot_df_list = [
 ]
 plot_df = pd.concat(plot_df_list).reset_index().rename(columns={"index": "error_scale"})
 # %%
+def format_line_label(origin, error_scale):
+    if origin == "normal":
+        return r"$\frac{\sigma^2_\epsilon}{\widehat{{var}}_{{kcal}}}$"
+    if origin == "berkson":
+        return ""
+    if origin == "lognormal":
+        return r"$\sigma^2_{(\log)}$"
+    return rf"$\sigma^2_\epsilon$"
+
+
 def plot_records(df, col): 
     scale = voe.raw_data[col].std()
 
@@ -130,7 +154,25 @@ def plot_records(df, col):
     ax.set_title("Behavior of nMSE under different error types")
     ax.set_xlabel(f"Error specific scale")
     ax.set_ylabel(f"Normalized MSE of {col}")
+    ax.set_xlim(-0.05, 1)
     ax.axhline(df.loc[df["origin"] == "berkson", col].iloc[0], linestyle = "--", color = "gray")
+    if ax.legend_ is not None:
+        ax.legend_.set_title(None)
+    line_endpoints = (
+        df.sort_values("error_scale")
+        .groupby("origin", as_index=False)
+        .tail(1)
+    )
+    for _, row in line_endpoints.iterrows():
+        ax.annotate(
+            format_line_label(row["origin"], row["error_scale"]),
+            (row["error_scale"], row[col]),
+            xytext=(-1, -3),
+            textcoords="offset points",
+            ha="right",
+            va="bottom"
+        )
     plt.show()
 plot_records(plot_df, plot_var)
+
 # %%

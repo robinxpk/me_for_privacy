@@ -126,7 +126,7 @@ mdl = gaussian_kde(data.loc[:, covariates].values.T, bw_method = "scott")
 # ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 # Create the data with additive Gaussian error. 
 # !!! To supply the normal_sd to JAX, it must be a FLOAT!
-error_var = 4
+error_var = 0.3
 def e_sigmoid(x, b0 = -30, b1 = 4): 
     # ! Need to supply the sigmoid to the DATA object because I need this to already use THIS function for ePIT construction
     # Else, the function in the error correction is not the same as the error function. Basically.
@@ -197,8 +197,23 @@ print("Relative Bias: ", (naive.mean_estimates(param_name = "beta") - frequentis
 # Need to provide the (true) measurement variance. Decided to use a matrix to keep it flexible for different variances across covariates.
 error_cov_matrix = jnp.diag(jnp.array([error_var])) # --> Working with only one error-affected covariate for now such that this is a scalar, but stick with the duck.
 
+### The epit model is super cooked... 
+# Epit Adjustments: 
+# --- 1) Express data fully in terms of tilde(z) instead of tilde(x)
+voe_error.masked_data.loc[:, "DR1TKCAL"] = jax.scipy.stats.norm.ppf(e_sigmoid(voe_error.masked_data.loc[:, "DR1TKCAL"].values)) 
+# --- 2) Express KDE in terms of (true) z
+# Because I draw z, the KDE must be expressed in terms of Z, too. 
+# Basically, the design matrix is X, but I evaluate partially X and z where touched by error
+data_raw_with_z = voe.raw_data
+data_raw_with_z.loc[:, "DR1TKCAL"] = jax.scipy.stats.norm.ppf(e_sigmoid(voe_error.raw_data.loc[:, "DR1TKCAL"].values)) 
+empirical_kde_mdl = gaussian_kde(data_raw_with_z.loc[:, covariates].values.T, bw_method = "scott")
+# --- 3) Express observed values in terms of tilde(z) instead of tilde(x) for initial values
+# ! When sub-selecting a columns, use this notation. Else, the code breaks.
+init_vals = voe_error.masked_data[["DR1TKCAL"]].values
+###
+
 corrected = BHM(
-    data = data, 
+    data = voe_error.masked_data, 
     response = "LBXT4",
     covariates = ["RIDAGEYR", "bmi", "DR1TKCAL"],
     # JAX does not allow me to pass error_cols as string to index the column in the design matrix touched by error. 
@@ -210,19 +225,20 @@ corrected = BHM(
         "c": 1,
         "d": 1
     },
-    empirical_kde_mdl = mdl,
+    empirical_kde_mdl = empirical_kde_mdl,
     error_cov_matrix = error_cov_matrix,
     initial_positions = {
         # Beta estimates
         "beta": jnp.repeat(
-            jnp.array([frequentist_values]), 
+            jnp.array([[0., 0., 0., 0.]]), 
+            # jnp.array([frequentist_values]), 
             repeats = num_chains,
             axis = 0
         ),
-        # Variance of Y, unknown... 
+        # Variance of Y, unknown --> Use empirical estimate
         "log_sigma": jnp.repeat(jnp.log(jnp.var(jnp.asarray(data["LBXT4"].values))), num_chains, axis = 0), 
         # For true observed values, start off with the ERROR-CONTAMINATED values only
-        "X_true": jnp.tile(data[["DR1TKCAL"]].values, (num_chains, 1, 1)) 
+        "Z_true": jnp.tile(init_vals, (num_chains, 1, 1)) 
     }, 
     inverse_mass_matrix = jnp.eye(3),
     rng_key = rng_key,
@@ -235,9 +251,12 @@ corrected = BHM(
 )
 corrected.fit()
 corrected.viz_chains(param_name = "beta")
+corrected.viz_chains(param_name = "log_sigma")
 
 # %%
 abs_bias_corrected = corrected.mean_estimates(param_name = "beta") -  frequentist_values # jnp.array([8.7095, 0.00186197, -0.0748638, -0.000378365]))
 print("Point Estimates:", corrected.mean_estimates(param_name = "beta") )
 print("Bias: ", abs_bias_corrected) # Deviation (relative)
 print("Relative Bias: ", (corrected.mean_estimates(param_name = "beta") - frequentist_values) / frequentist_values)
+
+# %%

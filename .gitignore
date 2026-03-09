@@ -1,5 +1,6 @@
 data/*.xpt
 data/*.csv
+*.csv
 data/*.Rdata
 # Do not track vim-specific files
 *.swp

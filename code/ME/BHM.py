@@ -58,7 +58,17 @@ class BHM:
         # Within the JAX sampler, column names cannot be used, but indeces only.
         # Translate the column name into an index. Note that the log density is evaluated without the intercept in X
         self.error_cols_index = [covariates.index(col) for col in error_cols] 
-        self.logdensity_fn = lambda params: post_log_dens(self.y, self.X, params, self.error_cols_index, error_cov_matrix, empirical_kde_mdl, e_sigmoid, e_inv_sigmoid, **hyperparams)
+        self.logdensity_fn = lambda params: post_log_dens(
+            self.y, 
+            self.X, 
+            params, 
+            self.error_cols_index, 
+            error_cov_matrix, 
+            empirical_kde_mdl, 
+            e_sigmoid, 
+            e_inv_sigmoid, 
+            **hyperparams
+        )
 
         # MCMC parameters
         self.initial_positions = initial_positions

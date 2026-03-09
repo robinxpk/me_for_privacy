@@ -85,9 +85,6 @@ factor_vars = c(
 # 
 
 # Check colinerity: 
-GGally::ggpairs(dat)
-dat
-
 write.table(
     dat,
     "../data/voe_data.csv",
@@ -118,13 +115,14 @@ sdf |>
 
 
 lin_mdl = lm(e_lin ~ log(DR1TKCAL), dat = sdf)
+summary(lin_mdl)
 # Check fit
 sdf$pred = predict(lin_mdl, newdata = sdf)
 
 sdf |> 
     ggplot(aes(x = DR1TKCAL)) + 
     geom_step(aes(y = e_lin)) + 
-    geom_line(aes(y = pred))
+    geom_line(aes(y = pred), color = "red")
 
 # Compare this to the eCDF / e_sigmoid data
 sdf = sdf |> 

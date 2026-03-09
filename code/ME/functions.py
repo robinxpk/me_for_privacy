@@ -99,11 +99,59 @@ def post_log_dens_lognormal_multiplicative(y, X, params, error_cols, error_cov_m
     log_beta_prior_term = -p/2 * jnp.log(b ** 2) - 1 / (2 * b ** 2) * jnp.sum(beta ** 2)
     log_sigma_prior_term = (c - 1) * log_sigma - d * jnp.exp(log_sigma) + log_sigma
     log_empirical_density = empirical_kde_mdl.logpdf(X_true.T).sum()
-    ## Print statement I used to check if the empirical density actually varied. It does :) 
     return log_likelihood_term + log_measurement_error_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term 
 
-def post_log_dens_epit(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl, sigmoid, inv_sigmoid, b, c, d,):
-    pass
+def post_log_dens_epit(y, Z, params, error_cols, error_cov_matrix, empirical_kde_mdl, sigmoid, inv_sigmoid, b, c, d,):
+    # TODO: This function assumes single column affected by error FOR NOW. Extend when time!
+        # i.e. error_cov_matrix IS NOT a matrix bzw. a 1x1 matrix
+    # For details on the error_cov_matrix, see additive normal error
+
+    # The posterior for the ePIT is expressed in terms of z, i.e. in terms of the scale where we add the error onto. 
+    # Reason: I think this will translate easier into the case where we might use another (non-derivative based) sampler 
+
+    ### --- params is a dictionary containing the current value of the parameters
+    ### --- Assign dictionary entries to variables 
+    ### --- Z
+        # A specific version of the design matrix: 
+        # Because I sample Z, for the columns touched by error, I would like to express those in terms of Z 
+        # The remaining variables in the design matrix are constant (constant variables :D lel), i.e.
+        # ASSUMPTION: 
+        # - Z is the design matrix with column of 1s for the intercept. 
+        # - All variable not touched by error are equal to their observed values
+        # - All variables touched by error are equal to their error variables, i.t. \tilde{z}
+            # --> Express density in terms of z and \tilde{z} bzw. the transformation x(z) 
+
+    beta = params["beta"]
+    log_sigma = params["log_sigma"]
+
+    # Construct design matrix X, i.e. corrected X values from Z which contains true x values and tilde(z) values
+    # 1) Z no intercept for the KDE
+    Z_no_intercept = Z[:, 1:] 
+    # Z_true containing the currently sampled true values 
+    Z_true = Z_no_intercept.at[:, error_cols].set(params["Z_true"])
+    # Extract error cols in terms of z for measurement error model 
+    # A) WITH error
+    Z_error_cols = Z_no_intercept[:, error_cols]
+    # B) WITHOUT error (without error in terms of the current sample)
+    Z_true_error_cols = Z_true[:, error_cols]
+
+    # Transform into x(z) for linear model
+    X_true_no_intercept = Z_true.at[:, error_cols].set(inv_sigmoid(jax.scipy.stats.norm.cdf(Z_true[:, error_cols])))
+
+    ### --- Identify dimensions of coefficient vector
+    # p INCLUDES INTERCEPT 
+    p = beta.shape[0]
+    n = Z.shape[0]
+    X_true_with_intercept = jnp.concatenate([jnp.ones((n, 1)), X_true_no_intercept], axis=1)
+    eta = X_true_with_intercept @ beta
+
+    # ! Density is expressed in terms of log_sigma seen from last summand in log_sigma_prior_term
+    log_likelihood_term = -n/2 * log_sigma  - 1 / 2 * (y - eta) @ (y - eta) / jnp.exp(log_sigma) 
+    log_measurement_error_term = -1/2 * (Z_error_cols - Z_true_error_cols)**2 @ jnp.linalg.inv(error_cov_matrix).sum(axis = 1)
+    log_beta_prior_term = -p/2 * jnp.log(b ** 2) - 1 / (2 * b ** 2) * jnp.sum(beta ** 2)
+    log_sigma_prior_term = (c - 1) * log_sigma - d * jnp.exp(log_sigma) + log_sigma
+    log_empirical_density = empirical_kde_mdl.logpdf(Z_true.T).sum()
+    return log_likelihood_term + log_measurement_error_term.sum() + log_empirical_density + log_beta_prior_term + log_sigma_prior_term 
 
 def post_log_dens_berkson(y, X, params, error_cols, error_cov_matrix, empirical_kde_mdl, b, c, d,):
     pass
