@@ -1,18 +1,21 @@
-name: me_for_privacy
+name: base
 channels:
   - defaults
+  - conda-forge
 dependencies:
-  - matplotlib
-  - scikit-learn
-  - ipykernel
-  - pandas
-  - qtconsole
-  - statsmodels
-  - python=3.12
-  - umap-learn
-  - lifelines
-  - tabulate
-  - seaborn
-  - jax
-  - blackjax
-prefix: C:\Users\robin\miniconda3\envs\me_for_privacy
+  - python=3.13
+  - conda=26.1.1
+  - setuptools
+  - pip
+  - wheel
+  - conda-anaconda-telemetry[version='>=0.3.0']
+  - conda-anaconda-tos[version='>=0.2.2']
+  - conda-content-trust
+  - conda-libmamba-solver
+  - menuinst
+  - anaconda_prompt
+  - anaconda_powershell_prompt
+  - anaconda-anon-usage
+  - anaconda-auth
+  - pytest
+prefix: C:\Users\robin\miniconda3
