@@ -2,21 +2,31 @@ name: me_for_privacy
 channels:
   - defaults
   - conda-forge
-  - main
 dependencies:
-  - python=3.13
-  - conda=26.1.1
-  - setuptools
+  - matplotlib
+  - scikit-learn
+  - ipykernel
+  - pandas
+  - qtconsole
+  - statsmodels
+  - python=3.13.12
+  - umap-learn
+  - lifelines
+  - tabulate
+  - seaborn
+  - jax
+  - blackjax
+  - pytest
+  - conda-anaconda-tos[version='>=0.2.2']
+  - anaconda_prompt
+  - menuinst
+  - conda-anaconda-telemetry[version='>=0.3.0']
   - pip
   - wheel
-  - conda-anaconda-telemetry[version='>=0.3.0']
-  - conda-anaconda-tos[version='>=0.2.2']
-  - conda-content-trust
-  - conda-libmamba-solver
-  - menuinst
-  - anaconda_prompt
-  - anaconda_powershell_prompt
-  - anaconda-anon-usage
   - anaconda-auth
-  - pytest
-prefix: C:\Users\robin\miniconda3
+  - setuptools
+  - conda=26.1.1
+  - conda-libmamba-solver
+  - conda-content-trust
+  - anaconda-anon-usage
+prefix: C:\Users\robin\miniconda3\envs\me_for_privacy
