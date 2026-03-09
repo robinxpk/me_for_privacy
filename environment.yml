@@ -2,6 +2,7 @@ name: me_for_privacy
 channels:
   - defaults
   - conda-forge
+  - main
 dependencies:
   - python=3.13
   - conda=26.1.1
