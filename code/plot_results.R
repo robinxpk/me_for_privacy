@@ -53,25 +53,31 @@ reference_values = c(
 
 long = long |> 
     dplyr::mutate(
-        bias = estimate - reference_values[parameter]
+        bias = estimate - reference_values[parameter], 
+        rel_bias = bias / estimate
     )
 
 
 # Result Plots ------------------------------------------------------------
-selected_error = "lognormal"
+selected_error = "ePIT"
 selected_error_index = 2
 parameter_names = c("beta0", "beta1", "beta2", "beta3")
+plot_dir = "../images/2026_03_10 Zwischenergebnisse/"
+plot_width = 8
+plot_height = 5
 
 error_variances = df |> dplyr::filter(error == !!selected_error) |> dplyr::pull(error_variance) |> unique()
 selected_error_variance = error_variances[selected_error_index]
 print(selected_error_variance)
+
+plotfile_name = paste0("bias_",  selected_error, "_", selected_error_variance, ".png")
 # Parameter Estimate Plots
 long |> 
     dplyr::filter(error == !!selected_error, error_variance == !!selected_error_variance) |> 
     dplyr::filter(parameter %in% !!parameter_names) |> 
     ggplot() + 
     geom_boxplot(aes(y = estimate, x = model, color = model)) + 
-    facet_wrap(~parameter, scales = "free", )
+    facet_wrap(~parameter, scales = "free")
 # Bias Plot
 long |> 
     dplyr::filter(error == !!selected_error, error_variance == !!selected_error_variance) |> 
@@ -80,6 +86,16 @@ long |>
     geom_boxplot(aes(y = bias, x = model, color = model)) + 
     geom_hline(yintercept = 0) + 
     facet_wrap(~parameter, scales = "free")
+ggsave(paste0(plot_dir, plotfile_name), width = plot_width, height = plot_height)
+long |> 
+    dplyr::filter(error == !!selected_error, error_variance == !!selected_error_variance) |> 
+    dplyr::filter(parameter %in% !!parameter_names) |> 
+    ggplot() + 
+    geom_boxplot(aes(y = rel_bias, x = model, color = model)) + 
+    geom_hline(yintercept = 0) + 
+    ylim(-1, 1) + 
+    facet_wrap(~parameter, scales = "free")
+ggsave(paste0(plot_dir, "rel_", plotfile_name), width = plot_width, height = plot_height)
 # Rhat Plot
 long |> 
     dplyr::filter(error == !!selected_error, error_variance == !!selected_error_variance) |> 
@@ -88,6 +104,7 @@ long |>
     geom_boxplot(aes(y = estimate, x = model, color = model)) + 
     geom_hline(yintercept = 1) + 
     facet_wrap(~parameter, scales = "free")
+ggsave(paste0(plot_dir, "rhat_", plotfile_name), width = plot_width, height = plot_height)
 # Log Sigma
 long |> 
     dplyr::filter(error == !!selected_error, error_variance == !!selected_error_variance) |> 
