@@ -1,3 +1,7 @@
+# This is a copy of "evaluate_single_BHMs", but with ePIT specific changes. 
+# Since ePIT is not optiamlly implemented as of now, I would like to keep the ePIT specific differences 
+
+
 # %%
 import jax
 import jax.numpy as jnp
@@ -10,7 +14,7 @@ from ME.BHM import BHM
 from ME.KDE import KDE_Dummy_Model
 from ME.Data import Data
 from ME.functions import post_log_dens, post_log_dens_gaussian_additive, post_log_dens_lognormal_multiplicative, post_log_dens_epit
-from plotnine import ggplot, aes, geom_point
+from plotnine import ggplot, aes, geom_point, geom_abline
 
 from datetime import date
 rng_key = jax.random.key(int(date.today().strftime("%Y%m%d")))
@@ -128,26 +132,46 @@ mdl = gaussian_kde(data.loc[:, covariates].values.T, bw_method = "scott")
 # Create the data with additive Gaussian error. 
 # !!! To supply the normal_sd to JAX, it must be a FLOAT!
 error_var = 0.3
-voe_error= Data(
-    name = f"berkson_{error_var}", 
-    raw_data = voe_data.dropna(ignore_index = True), 
-    seed = 1234,
-    error_vars = {"DR1TKCAL": jnp.array([error_var])}, 
-    error_type="berkson", 
-    # Exclude the error on age and bmi for now to simplify the error structure
-    cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
-)
+def e_sigmoid(x, b0 = -30, b1 = 4): 
+    # ! Need to supply the sigmoid to the DATA object because I need this to already use THIS function for ePIT construction
+    # Else, the function in the error correction is not the same as the error function. Basically.
+    # MODELLING THE LOG OF THE INPUT VARIABLE!! 
+    lin_mdl = b0 + b1 * jnp.log(x)
+    return jax.nn.sigmoid(lin_mdl)
+def e_inv_sigmoid(prob, b0 = -30, b1 = 4): 
+    # Input is value(s) between 0 and 1
+    # These inputs should be based on the previous e_sigmoid function 
+    # !!! SEEN FROM ABOVE, to obtain x, we need to inverse the log! 
+    log_odds = jnp.log(prob / (1 - prob)) 
+    return jnp.exp((log_odds - b0) / b1) # log_odds = lin_mdl which we have to solve for x
 
-# Effect of the error 
-# df = pd.concat([voe_error.raw_data[["DR1TKCAL"]], voe_error.masked_data[["DR1TKCAL"]]], axis = 1, names = ["raw", "masked"])
-# p = (
-#     ggplot(df, aes(x = "raw", y = "masked")) + 
-#     geom_point()
-# )
-# print(p)
+voe_error= Data(
+    name = f"epit_{error_var}", 
+    raw_data = voe_data.dropna(ignore_index = True), 
+    seed = 1234 + 2,
+    error_vars = {"DR1TKCAL": jnp.array([error_var])}, 
+    error_type="ePIT", 
+    # Exclude the error on age and bmi for now to simplify the error structure
+    cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"],
+    e_sigmoid = e_sigmoid, 
+    e_inv_sigmoid = e_inv_sigmoid
+)
 
 plt.scatter(voe_error.raw_data.DR1TKCAL, voe_error.masked_data.DR1TKCAL)
 plt.show()
+
+# %%
+ggplot_df = pd.concat([voe_error.raw_data[["DR1TKCAL"]], voe_error.masked_data[["DR1TKCAL"]]], axis = 1, keys = ["raw", "masked"])
+ggplot_df.columns = ["raw", "masked"]
+p = (
+    ggplot(ggplot_df, aes(x = "raw", y = "masked")) + 
+    geom_abline(slope = 1, intercept = 0, color = "red") + 
+    geom_point() 
+)
+p.show()
+
+print("Correlation:")
+print(jnp.corrcoef(ggplot_df.raw.values, ggplot_df.masked.values))
 
 # %%
 # #!! -------------------------- Fit Naive Model --------------------------------------- !!#

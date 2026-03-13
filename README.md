@@ -122,7 +122,7 @@ $$
 $$
 Rest as above, but with $\tilde{x}_{ij}$.
 
-### ME correction ###
+### ME Correction Model ###
 We correct for the measurement error using latent variables and separation into different sub-models. 
 #### A) Linear Model ####
 Simple linear model (Connects exposure und covariates, $p(y|x)$): 

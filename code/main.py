@@ -225,7 +225,7 @@ def fit_data_in_parallel(error_name, error_variance, B, empirical_kde_mdl):
 ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 
 # Lower sampling settings to speed up grid runs across error settings.
-B = 100
+B = 20
 n_warmup_steps = 2_000
 n_burnin = 0 # implicitly in warmup; TODO: Remove burnin from BHM class anyway
 n_samples = 2_000
@@ -234,7 +234,8 @@ n_samples = 2_000
 variable_subset = ["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]
 error_subset = ["DR1TKCAL"]
 # Error variances which are iterated over
-errors = ["ePIT"]
+errors = ["ePIT", "lognormal", "normal"]
+errors = ["normal", "lognormal"]
 
 # ref_var_normal_error = voe.raw_data[error_subset].var()
 ref_var_normal_error = 450411.083711
@@ -242,7 +243,7 @@ error_variances_by_error = {
     # The BHM expects a dictonary with the name of the error variance and the value. Thus, use a list of dictionaries for each error for differen error variance values
     "normal": [
         {"DR1TKCAL": 0.8 * ref_var_normal_error},
-        {"DR1TKCAL": 2 * ref_var_normal_error}
+        {"DR1TKCAL": 3.5 * ref_var_normal_error}
     ],
     # ! Supply the variance of the NORMAL distribution, i.e. variance of log(error) ~ N(mu, var) --> See README for further details
     "lognormal": [

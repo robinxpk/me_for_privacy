@@ -8,12 +8,14 @@ from ME.functions import *
 from ME.ModelLists import *
 import seaborn as sns
 import jax
+import jax.numpy as jnp
 
 # %%
 data_path = r"../data/"
 variable_subset = ["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]
 # Variable(s) affected by error
 error_subset = ["DR1TKCAL"]
+plot_var = "DR1TKCAL"
 # Points making up the later error-boxplot
 B = 20
 
@@ -42,26 +44,40 @@ voe_berkson = Data(
     error_type = "berkson", 
     cluster_based = True
 )
-voe_berkson.error_evaluation
-plot_df_berkson= pd.DataFrame(voe_berkson.error_evaluation).T.sort_index().assign(origin = "berkson")
+
+def summarize_error_run(data_obj, column_name):
+    return {
+        column_name: data_obj.error_evaluation[column_name],
+        "correlation": data_obj.raw_data[column_name].corr(data_obj.masked_data[column_name]),
+    }
+
+plot_df_berkson = (
+    pd.DataFrame({0.0: [summarize_error_run(voe_berkson, plot_var)]})
+    .T
+    .sort_index()
+    .assign(origin = "berkson")
+)
 
 # %%
 records_normal = dict()
-ref_var = voe.raw_data[error_subset].var()
+ref_var = voe.raw_data[error_subset].var().iloc[0]
 clean_data = voe_data.dropna(ignore_index = True)
 # Scale Error variance using the variance of the variable: x * sigma^2
-for normal_sd_factor in np.arange(0, 1, 0.1):
+for normal_sd_factor in np.arange(0, 4.1, 0.1):
     normal_var = normal_sd_factor * ref_var
     records_normal[normal_sd_factor] = [
-        Data(
-            name = f"normal_{normal_var.values[0]}", 
-            raw_data = clean_data, 
-            seed = 1234 + b,
-            error_vars = {"DR1TKCAL": normal_var}, 
-            error_type = "normal", 
-            # Exclude the error on age and bmi for now to simplify the error structure
-            cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
-        ).error_evaluation[error_subset]
+        summarize_error_run(
+            Data(
+                name = f"normal_{normal_var}", 
+                raw_data = clean_data, 
+                seed = 1234 + b,
+                error_vars = {"DR1TKCAL": normal_var}, 
+                error_type = "normal", 
+                # Exclude the error on age and bmi for now to simplify the error structure
+                cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
+            ),
+            plot_var,
+        )
         for b in range(B)
     ]
 
@@ -82,61 +98,72 @@ def e_inv_sigmoid(prob, b0 = -30, b1 = 4):
 records_epit= dict()
 for epit_var in np.arange(0, 1, 0.1):
     records_epit[epit_var] = [
-        Data(
-            name = f"epit_{epit_var}", 
-            raw_data = clean_data, 
-            seed = 1234 + b,
-            error_vars = {"DR1TKCAL": epit_var}, 
-            error_type = "ePIT",
-            cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"], 
-            e_sigmoid = e_sigmoid, 
-            e_inv_sigmoid = e_inv_sigmoid
-        ).error_evaluation[error_subset]
+        summarize_error_run(
+            Data(
+                name = f"epit_{epit_var}", 
+                raw_data = clean_data, 
+                seed = 1234 + b,
+                error_vars = {"DR1TKCAL": epit_var}, 
+                error_type = "ePIT",
+                cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"], 
+                e_sigmoid = e_sigmoid, 
+                e_inv_sigmoid = e_inv_sigmoid
+            ),
+            plot_var,
+        )
         for b in range(B)
     ]
-plot_df_epit = pd.DataFrame(records_epit).T.sort_index().assign(origin = "epit")
+plot_df_epit = pd.DataFrame(records_epit).T.sort_index().assign(origin = "ePIT")
 
 # %%
 records_lognormal= dict()
 # Use KCAL variance to play around with:
-for lognormal_var in np.arange(0.01, 0.5, 0.05):
+for lognormal_var in np.arange(0.01, 0.5, 0.025):
     records_lognormal[lognormal_var] = [
-        Data(
-            name = f"lognormal_{lognormal_var}", 
-            raw_data = clean_data, 
-            seed = 1234 + b,
-            error_vars = {"DR1TKCAL": lognormal_var}, 
-            error_type = "lognormal",
-            cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
-        ).error_evaluation[error_subset]
+        summarize_error_run(
+            Data(
+                name = f"lognormal_{lognormal_var}", 
+                raw_data = clean_data, 
+                seed = 1234 + b,
+                error_vars = {"DR1TKCAL": lognormal_var}, 
+                error_type = "lognormal",
+                cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
+            ),
+            plot_var,
+        )
         for b in range(B)
     ]
 plot_df_lognormal = pd.DataFrame(records_lognormal).T.sort_index().assign(origin = "lognormal")
 
 
 # %%
-plot_var = "DR1TKCAL"
-
-def extract_plot_var(df, plot_var):
+def extract_metric(df, metric_name):
     value_df = df.drop(columns="origin", errors="ignore")
-    values = value_df.stack(dropna=False).map(
-        lambda x: x.get(plot_var, np.nan)
+    values = value_df.stack().map(
+        lambda x: x.get(metric_name, np.nan)
         if isinstance(x, dict)
-        else (x[plot_var] if isinstance(x, pd.Series) else x)
+        else (x[metric_name] if isinstance(x, pd.Series) else x)
     )
-    out = values.groupby(level=0).mean().to_frame(name=plot_var)
+    out = values.groupby(level=0).mean().to_frame(name=metric_name)
     out["origin"] = df["origin"]
     return out
 
-
 plot_df_list = [
-    extract_plot_var(plot_df_normal, plot_var),
-    extract_plot_var(plot_df_lognormal, plot_var),
-    extract_plot_var(plot_df_epit, plot_var),
-    extract_plot_var(plot_df_berkson, plot_var),
+    extract_metric(plot_df_normal, plot_var),
+    extract_metric(plot_df_lognormal, plot_var),
+    extract_metric(plot_df_epit, plot_var),
+    extract_metric(plot_df_berkson, plot_var),
 ]
 plot_df = pd.concat(plot_df_list).reset_index().rename(columns={"index": "error_scale"})
-# %%
+
+corr_df_list = [
+    extract_metric(plot_df_normal, "correlation"),
+    extract_metric(plot_df_lognormal, "correlation"),
+    extract_metric(plot_df_epit, "correlation"),
+    extract_metric(plot_df_berkson, "correlation"),
+]
+corr_df = pd.concat(corr_df_list).reset_index().rename(columns={"index": "error_scale"})
+
 def format_line_label(origin, error_scale):
     if origin == "normal":
         return r"$\frac{\sigma^2_\epsilon}{\widehat{{var}}_{{kcal}}}$"
@@ -147,15 +174,19 @@ def format_line_label(origin, error_scale):
     return rf"$\sigma^2_\epsilon$"
 
 
-def plot_records(df, col): 
-    scale = voe.raw_data[col].std()
+def plot_records(df, col, xmax, title, ylabel): 
+    origins = df["origin"].drop_duplicates().tolist()
+    palette_colors = sns.color_palette(n_colors=len(origins))
+    palette = dict(zip(origins, palette_colors))
 
-    ax = sns.lineplot(data=df, x="error_scale", y=col, hue="origin", marker="o")
-    ax.set_title("Behavior of nMSE under different error types")
+    ax = sns.lineplot(data=df, x="error_scale", y=col, hue="origin", marker="o", palette=palette)
+    ax.set_title(title)
     ax.set_xlabel(f"Error specific scale")
-    ax.set_ylabel(f"Normalized MSE of {col}")
-    ax.set_xlim(-0.05, 1)
-    ax.axhline(df.loc[df["origin"] == "berkson", col].iloc[0], linestyle = "--", color = "gray")
+    ax.set_ylabel(ylabel)
+    ax.set_xlim(-0.05, xmax)
+    if "berkson" in df["origin"].values:
+        ax.axhline(df.loc[df["origin"] == "berkson", col].iloc[0], linestyle = "--", color = "gray")
+    ax.axhline(df.loc[df["origin"] == "ePIT", col].iloc[7], linestyle = "--", color = "gray")
     if ax.legend_ is not None:
         ax.legend_.set_title(None)
     line_endpoints = (
@@ -164,15 +195,36 @@ def plot_records(df, col):
         .tail(1)
     )
     for _, row in line_endpoints.iterrows():
+        label = format_line_label(row["origin"], row["error_scale"])
+        if not label:
+            continue
         ax.annotate(
-            format_line_label(row["origin"], row["error_scale"]),
+            label,
             (row["error_scale"], row[col]),
-            xytext=(-1, -3),
+            xytext=(-10, 0),
             textcoords="offset points",
             ha="right",
-            va="bottom"
+            va="center",
+            bbox={
+                "boxstyle": "round,pad=0.25",
+                "facecolor": "white",
+                "edgecolor": palette[row["origin"]],
+                "linewidth": 1.25,
+            }
         )
     plt.show()
-plot_records(plot_df, plot_var)
-
+plot_records(
+    plot_df,
+    plot_var,
+    xmax = 4,
+    title = "Behavior of nMSE under different error types",
+    ylabel = f"Normalized MSE of {plot_var}",
+)
+plot_records(
+    corr_df,
+    "correlation",
+    xmax = 4,
+    title = "Behavior of correlation under different error types",
+    ylabel = f"Correlation between original and error-touched {plot_var}",
+)
 # %%
