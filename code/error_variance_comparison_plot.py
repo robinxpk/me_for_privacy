@@ -38,11 +38,14 @@ voe = Data(
     raw_data = voe_data.dropna(ignore_index = True),
     error_type = "none"
 )
+
 voe_berkson = Data(
     name = "berkson", 
     raw_data = voe_data.dropna(ignore_index = True),
     error_type = "berkson", 
-    cluster_based = True
+    cluster_based = True, 
+    seed = 17,
+    cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
 )
 
 def summarize_error_run(data_obj, column_name):
@@ -63,7 +66,7 @@ records_normal = dict()
 ref_var = voe.raw_data[error_subset].var().iloc[0]
 clean_data = voe_data.dropna(ignore_index = True)
 # Scale Error variance using the variance of the variable: x * sigma^2
-for normal_sd_factor in np.arange(0, 4.1, 0.1):
+for normal_sd_factor in np.arange(0, 1.1, 0.1):
     normal_var = normal_sd_factor * ref_var
     records_normal[normal_sd_factor] = [
         summarize_error_run(
@@ -186,7 +189,7 @@ def plot_records(df, col, xmax, title, ylabel):
     ax.set_xlim(-0.05, xmax)
     if "berkson" in df["origin"].values:
         ax.axhline(df.loc[df["origin"] == "berkson", col].iloc[0], linestyle = "--", color = "gray")
-    ax.axhline(df.loc[df["origin"] == "ePIT", col].iloc[7], linestyle = "--", color = "gray")
+    # ax.axhline(df.loc[df["origin"] == "ePIT", col].iloc[7], linestyle = "--", color = "gray")
     if ax.legend_ is not None:
         ax.legend_.set_title(None)
     line_endpoints = (
@@ -216,7 +219,7 @@ def plot_records(df, col, xmax, title, ylabel):
 plot_records(
     plot_df,
     plot_var,
-    xmax = 4,
+    xmax = 1,
     title = "Behavior of nMSE under different error types",
     ylabel = f"Normalized MSE of {plot_var}",
 )
@@ -227,4 +230,25 @@ plot_records(
     title = "Behavior of correlation under different error types",
     ylabel = f"Correlation between original and error-touched {plot_var}",
 )
+print(voe_berkson.evaluate_errors())
+# %%
+best_berkson_seed = None
+best_berkson_score = -np.inf
+
+for seed in range(9999, 10 ** 6):
+    current_berkson = Data(
+        name = "berkson",
+        raw_data = voe_data.dropna(ignore_index = True),
+        error_type = "berkson",
+        cluster_based = True,
+        seed = seed,
+        cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
+    )
+    current_score = current_berkson.evaluate_errors()["DR1TKCAL"]
+    if current_score > best_berkson_score:
+        best_berkson_seed = seed
+        best_berkson_score = current_score
+
+print(best_berkson_seed)
+
 # %%

@@ -53,7 +53,8 @@ reference_values = c(
 
 long = long |> 
     dplyr::mutate(
-        bias = estimate - reference_values[parameter], 
+        reference_values = reference_values[parameter],
+        bias = estimate - reference_values, 
         rel_bias = bias / estimate
     )
 
@@ -77,7 +78,9 @@ long |>
     dplyr::filter(parameter %in% !!parameter_names) |> 
     ggplot() + 
     geom_boxplot(aes(y = estimate, x = model, color = model)) + 
+    geom_hline(aes(yintercept = reference_values))
     facet_wrap(~parameter, scales = "free")
+
 # Bias Plot
 long |> 
     dplyr::filter(error == !!selected_error, error_variance == !!selected_error_variance) |> 
@@ -93,7 +96,6 @@ long |>
     ggplot() + 
     geom_boxplot(aes(y = rel_bias, x = model, color = model)) + 
     geom_hline(yintercept = 0) + 
-    ylim(-1, 1) + 
     facet_wrap(~parameter, scales = "free")
 ggsave(paste0(plot_dir, "rel_", plotfile_name), width = plot_width, height = plot_height)
 # Rhat Plot
@@ -113,4 +115,3 @@ long |>
     geom_boxplot(aes(y = estimate, x = model, color = model)) + 
     facet_wrap(~parameter, scales = "free", )
 
-    

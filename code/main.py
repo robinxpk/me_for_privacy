@@ -160,6 +160,12 @@ def single_iteration(error_name, error_variance, b, empirical_kde_mdl):
     corrected_rhat_beta = blackjax.diagnostics.potential_scale_reduction(corrected.res.position["beta"])
     corrected_rhat_log_sigma = blackjax.diagnostics.potential_scale_reduction(corrected.res.position["log_sigma"])
 
+    # Get confidence intervals
+    naive_beta_ci = naive.confidence_interval("beta")
+    naive_log_sigma_ci = naive.confidence_interval("log_sigma")
+    corrected_beta_ci = corrected.confidence_interval("beta")
+    corrected_log_sigma_ci = corrected.confidence_interval("log_sigma")
+
     # Hardcoded results. yey.
     res = pd.DataFrame(
         data = {
@@ -181,6 +187,18 @@ def single_iteration(error_name, error_variance, b, empirical_kde_mdl):
             "naive_rhat_beta3":     [float(naive_rhat_beta[3])  ],
             "naive_rhat_log_sigma": [float(naive_rhat_log_sigma)],
 
+            # Naive Model CIs
+            "naive_beta0_ci_lower": [float(naive_beta_ci[0][0])],
+            "naive_beta0_ci_upper": [float(naive_beta_ci[1][0])],
+            "naive_beta1_ci_lower": [float(naive_beta_ci[0][1])],
+            "naive_beta1_ci_upper": [float(naive_beta_ci[1][1])],
+            "naive_beta2_ci_lower": [float(naive_beta_ci[0][2])],
+            "naive_beta2_ci_upper": [float(naive_beta_ci[1][2])],
+            "naive_beta3_ci_lower": [float(naive_beta_ci[0][3])],
+            "naive_beta3_ci_upper": [float(naive_beta_ci[1][3])],
+            "naive_log_sigma_ci_lower": [float(naive_log_sigma_ci[0])],
+            "naive_log_sigma_ci_upper": [float(naive_log_sigma_ci[1])],
+
             # Corrected Model Estimates
             "corrected_beta0":      [float(corrected.mean_estimates(param_name = "beta")[0])    ], 
             "corrected_beta1":      [float(corrected.mean_estimates(param_name = "beta")[1])    ],
@@ -192,7 +210,19 @@ def single_iteration(error_name, error_variance, b, empirical_kde_mdl):
             "corrected_rhat_beta1":     [float(corrected_rhat_beta[1])  ],
             "corrected_rhat_beta2":     [float(corrected_rhat_beta[2])  ],
             "corrected_rhat_beta3":     [float(corrected_rhat_beta[3])  ],
-            "corrected_rhat_log_sigma": [float(corrected_rhat_log_sigma)] 
+            "corrected_rhat_log_sigma": [float(corrected_rhat_log_sigma)] ,
+
+            # Corrected Model CIs
+            "corrected_beta0_ci_lower": [float(corrected_beta_ci[0][0])],
+            "corrected_beta0_ci_upper": [float(corrected_beta_ci[1][0])],
+            "corrected_beta1_ci_lower": [float(corrected_beta_ci[0][1])],
+            "corrected_beta1_ci_upper": [float(corrected_beta_ci[1][1])],
+            "corrected_beta2_ci_lower": [float(corrected_beta_ci[0][2])],
+            "corrected_beta2_ci_upper": [float(corrected_beta_ci[1][2])],
+            "corrected_beta3_ci_lower": [float(corrected_beta_ci[0][3])],
+            "corrected_beta3_ci_upper": [float(corrected_beta_ci[1][3])],
+            "corrected_log_sigma_ci_lower": [float(corrected_log_sigma_ci[0])],
+            "corrected_log_sigma_ci_upper": [float(corrected_log_sigma_ci[1])]
         }
     )
     filename = f"out_{error_name}_{list(error_variance.values())[0]}_{b}.csv"
@@ -225,7 +255,7 @@ def fit_data_in_parallel(error_name, error_variance, B, empirical_kde_mdl):
 ### #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-# ###
 
 # Lower sampling settings to speed up grid runs across error settings.
-B = 20
+B = 50
 n_warmup_steps = 2_000
 n_burnin = 0 # implicitly in warmup; TODO: Remove burnin from BHM class anyway
 n_samples = 2_000
@@ -236,6 +266,7 @@ error_subset = ["DR1TKCAL"]
 # Error variances which are iterated over
 errors = ["ePIT", "lognormal", "normal"]
 errors = ["normal", "lognormal"]
+errors = ["ePIT"]
 
 # ref_var_normal_error = voe.raw_data[error_subset].var()
 ref_var_normal_error = 450411.083711
@@ -268,7 +299,7 @@ covariates = ["RIDAGEYR", "bmi", "DR1TKCAL"]
 
 # -1 for response variable, +1 for intercept; This is only kept for clarity
 p = len(variable_subset) - 1 + 1
-num_chains = 3
+num_chains = 2
 
 # %%
 #!! ------------------------------- Load the Data ------------------------------------- !!#

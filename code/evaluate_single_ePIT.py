@@ -13,8 +13,9 @@ import pandas as pd
 from ME.BHM import BHM
 from ME.KDE import KDE_Dummy_Model
 from ME.Data import Data
+from OLDData import Data as OLDData
 from ME.functions import post_log_dens, post_log_dens_gaussian_additive, post_log_dens_lognormal_multiplicative, post_log_dens_epit
-from plotnine import ggplot, aes, geom_point, geom_abline
+from plotnine import ggplot, aes, geom_point, geom_abline, scale_y_continuous
 
 from datetime import date
 rng_key = jax.random.key(int(date.today().strftime("%Y%m%d")))
@@ -157,20 +158,53 @@ voe_error= Data(
     e_inv_sigmoid = e_inv_sigmoid
 )
 
+voe_old_error= OLDData(
+    name = f"epit_{error_var}", 
+    raw_data = voe_data.dropna(ignore_index = True), 
+    seed = 1234 + 2,
+    error_vars = {"DR1TKCAL": jnp.array([error_var])}, 
+    error_type="ePIT", 
+    # Exclude the error on age and bmi for now to simplify the error structure
+    cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
+)
+
+
 plt.scatter(voe_error.raw_data.DR1TKCAL, voe_error.masked_data.DR1TKCAL)
 plt.show()
 
+plt.scatter(voe_old_error.raw_data.DR1TKCAL, voe_old_error.masked_data.DR1TKCAL)
+plt.show()
+
 # %%
-ggplot_df = pd.concat([voe_error.raw_data[["DR1TKCAL"]], voe_error.masked_data[["DR1TKCAL"]]], axis = 1, keys = ["raw", "masked"])
-ggplot_df.columns = ["raw", "masked"]
+ggplot_df = pd.concat(
+    [
+        voe_old_error.raw_data[["DR1TKCAL"]], 
+        voe_old_error.masked_data[["DR1TKCAL"]], 
+        voe_error.raw_data[["DR1TKCAL"]], 
+        voe_error.masked_data[["DR1TKCAL"]]
+    ], axis = 1)
+ggplot_df.columns = ["old_raw", "old_masked", "raw", "masked"]
+
 p = (
-    ggplot(ggplot_df, aes(x = "raw", y = "masked")) + 
+    ggplot(ggplot_df) + 
     geom_abline(slope = 1, intercept = 0, color = "red") + 
-    geom_point() 
+    geom_point(aes(x = "raw", y = "masked"), alpha = 0.5, color = "blue") + 
+    scale_y_continuous(limits=(0, 8000))
+)
+p.show()
+p = (
+    ggplot(ggplot_df) + 
+    geom_abline(slope = 1, intercept = 0, color = "red") + 
+    geom_point(aes(x = "old_raw", y = "old_masked"), alpha = 0.5, color = "green")  +
+    scale_y_continuous(limits=(0, 8000))
 )
 p.show()
 
+
 print("Correlation:")
+print("Actual ePIT (old)")
+print(jnp.corrcoef(ggplot_df.old_raw.values, ggplot_df.old_masked.values))
+print("Smooth ePIT Proxi via Sigmoids")
 print(jnp.corrcoef(ggplot_df.raw.values, ggplot_df.masked.values))
 
 # %%
