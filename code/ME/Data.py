@@ -137,10 +137,13 @@ class NormalErrorModel(MeasurementErrorModel):
             col_error = np.floor(col_error)
 
         if col.min() >= 0:
-            negative_cases = col_error[col_error < 0]
-            q05 = np.quantile(col, 0.05)
-            smallest_5 = col[col <= q05]
-            col_error[col_error < 0] = rng.choice(smallest_5, size=len(negative_cases), replace=True)
+            print("Negative values created where I assume non-negative variable.")
+        #     # Replace negative values with lower tail values of the variable
+        #     negative_cases = col_error[col_error < 0]
+        #     q05 = np.quantile(col, 0.05)
+        #     smallest_5 = col[col <= q05]
+        #     col_error[col_error < 0] = rng.choice(smallest_5, size=len(negative_cases), replace=True)
+        #     print("Negative values appeared in a variable that is assumed to be possitive. Replaced by lower tail values to avoid negatives.")
 
         return col_error
 
