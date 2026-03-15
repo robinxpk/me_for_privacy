@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 
 # %%
-data_path = r"../data/"
+data_path = r"./data/"
 variable_subset = ["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]
 # Variable(s) affected by error
 error_subset = ["DR1TKCAL"]
@@ -35,18 +35,21 @@ voe_data = voe_data.loc[:, variable_subset].dropna(ignore_index = True)
 # %% 
 voe = Data(
     name = "true", 
-    raw_data = voe_data.dropna(ignore_index = True),
+    raw_data = voe_data,
     error_type = "none"
 )
 
 voe_berkson = Data(
-    name = "berkson", 
-    raw_data = voe_data.dropna(ignore_index = True),
-    error_type = "berkson", 
-    cluster_based = True, 
+    name = f"berkson", 
+    raw_data = voe_data.dropna(ignore_index = True), 
+    seed = 1234,
+    error_vars = {"DR1TKCAL": jnp.array([0.])}, 
+    error_type="berkson", 
+    # Exclude the error on age and bmi for now to simplify the error structure
+    cluster_based=True, 
     cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
 )
-
+# %%
 def summarize_error_run(data_obj, column_name):
     return {
         column_name: data_obj.error_evaluation[column_name],
@@ -140,15 +143,16 @@ plot_df_lognormal = pd.DataFrame(records_lognormal).T.sort_index().assign(origin
 
 # %%
 def extract_metric(df, metric_name):
+    origin = np.unique(df.origin)[0]
     value_df = df.drop(columns="origin", errors="ignore")
     values = value_df.stack().map(
         lambda x: x.get(metric_name, np.nan)
         if isinstance(x, dict)
         else (x[metric_name] if isinstance(x, pd.Series) else x)
     )
-    out = values.groupby(level=0).mean().to_frame(name=metric_name)
-    out["origin"] = df["origin"]
-    return out
+    out = values.to_frame(name = metric_name)
+    out.loc[:, "origin"] = origin
+    return out.reset_index(names = ["error_scale", "iteration"])
 
 plot_df_list = [
     extract_metric(plot_df_normal, plot_var),
@@ -156,7 +160,7 @@ plot_df_list = [
     extract_metric(plot_df_epit, plot_var),
     extract_metric(plot_df_berkson, plot_var),
 ]
-plot_df = pd.concat(plot_df_list).reset_index().rename(columns={"index": "error_scale"})
+plot_df = pd.concat(plot_df_list).reset_index()
 
 corr_df_list = [
     extract_metric(plot_df_normal, "correlation"),
@@ -164,90 +168,51 @@ corr_df_list = [
     extract_metric(plot_df_epit, "correlation"),
     extract_metric(plot_df_berkson, "correlation"),
 ]
-corr_df = pd.concat(corr_df_list).reset_index().rename(columns={"index": "error_scale"})
-
-def format_line_label(origin, error_scale):
-    if origin == "normal":
-        return r"$\frac{\sigma^2_\epsilon}{\widehat{{var}}_{{kcal}}}$"
-    if origin == "berkson":
-        return ""
-    if origin == "lognormal":
-        return r"$\sigma^2_{(\log)}$"
-    return rf"$\sigma^2_\epsilon$"
-
-
-def plot_records(df, col, xmax, title, ylabel): 
-    origins = df["origin"].drop_duplicates().tolist()
-    palette_colors = sns.color_palette(n_colors=len(origins))
-    palette = dict(zip(origins, palette_colors))
-
-    ax = sns.lineplot(data=df, x="error_scale", y=col, hue="origin", marker="o", palette=palette)
-    ax.set_title(title)
-    ax.set_xlabel(f"Error specific scale")
-    ax.set_ylabel(ylabel)
-    ax.set_xlim(-0.05, xmax)
-    if "berkson" in df["origin"].values:
-        ax.axhline(df.loc[df["origin"] == "berkson", col].iloc[0], linestyle = "--", color = "gray")
-    # ax.axhline(df.loc[df["origin"] == "ePIT", col].iloc[7], linestyle = "--", color = "gray")
-    if ax.legend_ is not None:
-        ax.legend_.set_title(None)
-    line_endpoints = (
-        df.sort_values("error_scale")
-        .groupby("origin", as_index=False)
-        .tail(1)
-    )
-    for _, row in line_endpoints.iterrows():
-        label = format_line_label(row["origin"], row["error_scale"])
-        if not label:
-            continue
-        ax.annotate(
-            label,
-            (row["error_scale"], row[col]),
-            xytext=(-10, 0),
-            textcoords="offset points",
-            ha="right",
-            va="center",
-            bbox={
-                "boxstyle": "round,pad=0.25",
-                "facecolor": "white",
-                "edgecolor": palette[row["origin"]],
-                "linewidth": 1.25,
-            }
-        )
-    plt.show()
-plot_records(
-    plot_df,
-    plot_var,
-    xmax = 1,
-    title = "Behavior of nMSE under different error types",
-    ylabel = f"Normalized MSE of {plot_var}",
-)
-plot_records(
-    corr_df,
-    "correlation",
-    xmax = 4,
-    title = "Behavior of correlation under different error types",
-    ylabel = f"Correlation between original and error-touched {plot_var}",
-)
-print(voe_berkson.evaluate_errors())
-# # %%
-# best_berkson_seed = None
-# best_berkson_score = -np.inf
-
-# for seed in range(9999, 10 ** 5):
-#     current_berkson = Data(
-#         name = "berkson",
-#         raw_data = voe_data.dropna(ignore_index = True),
-#         error_type = "berkson",
-#         cluster_based = True,
-#         seed = seed,
-#         cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
-#     )
-#     current_score = current_berkson.evaluate_errors()["DR1TKCAL"]
-#     if current_score > best_berkson_score:
-#         best_berkson_seed = seed
-#         best_berkson_score = current_score
-
-# print(best_berkson_seed)
+corr_df = pd.concat(corr_df_list).reset_index()
 
 # %%
+from plotnine import ggplot, aes, geom_ribbon, geom_line, geom_point, geom_hline, geom_label, scale_y_continuous, scale_x_continuous, theme_classic, theme, element_blank, element_rect, ggsave
+def run_ggplot(df, plot_var): 
+    point_estimate_df = df.groupby(["origin", "error_scale"]).median().reset_index()
+    upper_bound_df = df.groupby(["origin", "error_scale"]).quantile(q = 0.75).reset_index()
+    lower_bound_df = df.groupby(["origin", "error_scale"]).quantile(q = 0.25).reset_index()
+    upper_bound_df.rename(columns = {"DR1TKCAL": "upper"}, inplace = True)
+    lower_bound_df.rename(columns = {"DR1TKCAL": "lower"}, inplace = True)
+    ci_df = pd.merge(lower_bound_df, upper_bound_df, how = "left", on = ["origin", "error_scale"])
+
+    label_df = pd.DataFrame(
+        {
+            "origin": ["normal", "lognormal", "ePIT"],
+            "x": [0.8, 0.35, 0.75], 
+            "y": [0.3, 3.5, 4.2], 
+            "label": [r"$\frac{\sigma_\epsilon^2}{\widehat{var}(y)}$", r"$\sigma_{(log)}^2$", r"$\sigma_\epsilon^2$"]
+        }
+    )
+
+    p = (
+        ggplot(point_estimate_df, aes(x = "error_scale")) +
+        geom_ribbon(data = ci_df, mapping = aes(ymin = "lower", ymax = "upper", fill = "origin"), alpha = 0.3) + 
+        geom_line(mapping = aes(y = plot_var, color = "origin")) + 
+        geom_point(mapping = aes(y = plot_var, color = "origin")) + 
+        geom_hline(yintercept = 0.75, linetype = "--", alpha = 0.5) + 
+        geom_hline(yintercept = 3, linetype = "--", alpha = 0.5) +
+        geom_label(data = label_df, mapping = aes(y = "y", label = "label", x = "x")) + 
+        geom_point(data = point_estimate_df.loc[point_estimate_df.origin == "berkson", :], mapping = aes(y = plot_var, color = "origin")) + 
+        scale_x_continuous(
+            name = "Error specific scale", 
+            breaks = np.array(range(0, 11)) / 10 
+        ) + 
+        scale_y_continuous(
+            name = r"$nMSE_{kcal}$", 
+            breaks = np.array(range(0, 7)) 
+        ) + 
+        theme_classic(base_size = 14) + 
+        theme(
+            legend_position = (0.02, 0.98),
+            legend_justification = (0, 1),
+            legend_background = element_rect(fill = "white", color = "grey"),
+            legend_title = element_blank()
+        )
+    )
+    p.show()
+run_ggplot(plot_df, plot_var = plot_var)

@@ -78,7 +78,7 @@ long |>
     dplyr::filter(parameter %in% !!parameter_names) |> 
     ggplot() + 
     geom_boxplot(aes(y = estimate, x = model, color = model)) + 
-    geom_hline(aes(yintercept = reference_values))
+    geom_hline(aes(yintercept = reference_values)) + 
     facet_wrap(~parameter, scales = "free")
 
 # Bias Plot

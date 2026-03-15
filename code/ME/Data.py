@@ -243,6 +243,7 @@ class Data:
         self.masked_var = self.masked_data.select_dtypes(include="number").var()
 
     def evaluate_errors(self):
+        # Evaluate error of all numerical columns at once
         sqd_diffs = (
             self.raw_data.select_dtypes(include="number")
             - self.masked_data.select_dtypes(include="number")

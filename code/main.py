@@ -266,7 +266,6 @@ error_subset = ["DR1TKCAL"]
 # Error variances which are iterated over
 errors = ["ePIT", "lognormal", "normal"]
 errors = ["normal", "lognormal"]
-errors = ["ePIT"]
 
 # ref_var_normal_error = voe.raw_data[error_subset].var()
 ref_var_normal_error = 450411.083711

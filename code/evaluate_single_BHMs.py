@@ -135,6 +135,7 @@ voe_error= Data(
     error_vars = {"DR1TKCAL": jnp.array([error_var])}, 
     error_type="berkson", 
     # Exclude the error on age and bmi for now to simplify the error structure
+    cluster_based=True, 
     cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
 )
 
