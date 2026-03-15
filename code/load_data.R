@@ -133,7 +133,43 @@ sdf = sdf |>
 sdf |> 
     ggplot(aes(x = DR1TKCAL)) + 
     geom_step(aes(y = e_sigmoid)) + 
-    geom_line(aes(y = pred_sigmoid), color = "red")
+    geom_line(aes(y = pred_sigmoid), color = "red") 
+    
+
+sdf |>
+    ggplot(aes(x = DR1TKCAL)) + 
+    geom_step(
+        aes(y = e_sigmoid, color = "Empirical"),
+        linewidth = 0.9
+    ) + 
+    geom_line(
+        aes(y = pred_sigmoid, color = "Fitted"),
+        linewidth = 1
+    ) +
+    scale_color_manual(
+        values = c("Empirical" = "black", "Fitted" = "darkorange"),
+        name = NULL
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(big.mark = ",")
+    ) +
+    scale_y_continuous(
+        labels = scales::label_percent(accuracy = 1),
+        limits = c(0, 1),
+        expand = expansion(mult = c(0, 0.02))
+    ) +
+    labs(
+        x = latex2exp::TeX(r"($x_{kcal}$)"),
+        y = "CDF",
+    ) +
+    theme_minimal(base_size = 25) +
+    theme(
+        plot.title = element_text(face = "bold"),
+        axis.title = element_text(face = "bold"),
+        panel.grid.minor = element_blank(),
+        legend.position = c(0.8, 0.2)
+    )
+    
 
 # Fit looks decent? 
 # Just double checking the linear model to ensure that moving this to jax would work out. Roughly. 

@@ -44,7 +44,6 @@ voe_berkson = Data(
     raw_data = voe_data.dropna(ignore_index = True),
     error_type = "berkson", 
     cluster_based = True, 
-    seed = 17,
     cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
 )
 
@@ -231,24 +230,24 @@ plot_records(
     ylabel = f"Correlation between original and error-touched {plot_var}",
 )
 print(voe_berkson.evaluate_errors())
-# %%
-best_berkson_seed = None
-best_berkson_score = -np.inf
+# # %%
+# best_berkson_seed = None
+# best_berkson_score = -np.inf
 
-for seed in range(9999, 10 ** 6):
-    current_berkson = Data(
-        name = "berkson",
-        raw_data = voe_data.dropna(ignore_index = True),
-        error_type = "berkson",
-        cluster_based = True,
-        seed = seed,
-        cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
-    )
-    current_score = current_berkson.evaluate_errors()["DR1TKCAL"]
-    if current_score > best_berkson_score:
-        best_berkson_seed = seed
-        best_berkson_score = current_score
+# for seed in range(9999, 10 ** 5):
+#     current_berkson = Data(
+#         name = "berkson",
+#         raw_data = voe_data.dropna(ignore_index = True),
+#         error_type = "berkson",
+#         cluster_based = True,
+#         seed = seed,
+#         cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
+#     )
+#     current_score = current_berkson.evaluate_errors()["DR1TKCAL"]
+#     if current_score > best_berkson_score:
+#         best_berkson_seed = seed
+#         best_berkson_score = current_score
 
-print(best_berkson_seed)
+# print(best_berkson_seed)
 
 # %%

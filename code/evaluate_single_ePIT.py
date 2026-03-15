@@ -4,6 +4,7 @@
 
 # %%
 import jax
+import numpy as np
 import jax.numpy as jnp
 import jax.nn as jnn
 import blackjax
@@ -13,9 +14,9 @@ import pandas as pd
 from ME.BHM import BHM
 from ME.KDE import KDE_Dummy_Model
 from ME.Data import Data
-from OLDData import Data as OLDData
+from ME.OLDData import Data as OLDData
 from ME.functions import post_log_dens, post_log_dens_gaussian_additive, post_log_dens_lognormal_multiplicative, post_log_dens_epit
-from plotnine import ggplot, aes, geom_point, geom_abline, scale_y_continuous
+from plotnine import ggplot, aes, geom_point, geom_abline, scale_y_continuous, scale_x_continuous, labs, theme_minimal, theme, element_text, geom_label
 
 from datetime import date
 rng_key = jax.random.key(int(date.today().strftime("%Y%m%d")))
@@ -168,14 +169,6 @@ voe_old_error= OLDData(
     cols_excluded_from_error = ["LBXT4", "RIDAGEYR", "bmi"]
 )
 
-
-plt.scatter(voe_error.raw_data.DR1TKCAL, voe_error.masked_data.DR1TKCAL)
-plt.show()
-
-plt.scatter(voe_old_error.raw_data.DR1TKCAL, voe_old_error.masked_data.DR1TKCAL)
-plt.show()
-
-# %%
 ggplot_df = pd.concat(
     [
         voe_old_error.raw_data[["DR1TKCAL"]], 
@@ -185,27 +178,79 @@ ggplot_df = pd.concat(
     ], axis = 1)
 ggplot_df.columns = ["old_raw", "old_masked", "raw", "masked"]
 
+# %%
+# Jax correlation behaved odd within this expression, so I went back to numpy
+r = round(np.corrcoef(ggplot_df.raw.values, ggplot_df.masked.values)[0, 1], 2)
+print(f"Correlation: Smooth ePIT Proxi via Sigmoids {r}")
+
 p = (
-    ggplot(ggplot_df) + 
-    geom_abline(slope = 1, intercept = 0, color = "red") + 
-    geom_point(aes(x = "raw", y = "masked"), alpha = 0.5, color = "blue") + 
-    scale_y_continuous(limits=(0, 8000))
-)
-p.show()
-p = (
-    ggplot(ggplot_df) + 
-    geom_abline(slope = 1, intercept = 0, color = "red") + 
-    geom_point(aes(x = "old_raw", y = "old_masked"), alpha = 0.5, color = "green")  +
-    scale_y_continuous(limits=(0, 8000))
+    ggplot(ggplot_df, aes(x = "raw", y = "masked")) +
+  geom_abline(
+    slope = 1, intercept = 0,
+    color = "green"
+  ) +
+  geom_point(
+    color = "darkorange",
+    alpha = 0.55,
+    size = 1.6
+  ) +
+  geom_label(
+      x=7500,
+      y=100,
+      label=f"Corr: {r}",
+      size=20
+  ) + 
+  scale_y_continuous(
+    limits = (0, 8000),
+  ) +
+  labs(
+    x = r"$x_{\text{kcal}}$",
+    y = r"$\tilde{x}_{\text{kcal}}$"
+  ) +
+  theme_minimal(base_size = 20) +
+  theme(
+    axis_title = element_text(face = "bold"),
+  )
 )
 p.show()
 
 
-print("Correlation:")
-print("Actual ePIT (old)")
-print(jnp.corrcoef(ggplot_df.old_raw.values, ggplot_df.old_masked.values))
-print("Smooth ePIT Proxi via Sigmoids")
-print(jnp.corrcoef(ggplot_df.raw.values, ggplot_df.masked.values))
+# %%
+r = round(np.corrcoef(ggplot_df.old_raw.values, ggplot_df.old_masked.values)[0, 1], 2)
+print(f"Correlation: eCDF (ePIT as tought of) {r}")
+p = (
+    ggplot(ggplot_df, aes(x = "old_raw", y = "old_masked")) +
+  geom_abline(
+    slope = 1, intercept = 0,
+    color = "green"
+  ) +
+  geom_point(
+    color = "#5A4FCF",
+    alpha = 0.55,
+    size = 1.6
+  ) +
+  geom_label(
+      x=7500,
+      y=100,
+      label=f"Corr: {r}",
+      size=20
+  ) + 
+  scale_y_continuous(
+    limits = (0, 8000),
+  ) +
+  labs(
+    x = r"$x_{\text{kcal}}$",
+    y = r"$\tilde{x}_{\text{kcal}}$"
+  ) +
+  theme_minimal(base_size = 20) +
+  theme(
+    axis_title = element_text(face = "bold")
+  )
+)
+p.show()
+
+
+# Jax correlation behaved odd within this expression, so I went back to numpy
 
 # %%
 # #!! -------------------------- Fit Naive Model --------------------------------------- !!#

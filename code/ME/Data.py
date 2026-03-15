@@ -280,7 +280,7 @@ class Data:
             )
         working_df = data.select_dtypes(include="number")
 
-        k_means = sklearn.cluster.KMeans(n_clusters=(self.n // n_neighbors) + 1, random_state=self.seed, OMP_NUM_THREADS=2)
+        k_means = sklearn.cluster.KMeans(n_clusters=(self.n // n_neighbors), random_state=self.seed)
         k_means.fit(np.array(working_df))
         return Cluster(fit=k_means, data=working_df)
 

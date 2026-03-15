@@ -123,6 +123,10 @@ class BHM:
     def fit(self): 
         rng_key = jax.random.split(self.rng_key, self.num_chains)
         self.res = jax.vmap(self._adapt_and_sample_one_chain)(rng_key, self.initial_positions)
+
+    def _posterior_draws(self, param_name):
+        draws = self.res.position[param_name][:, self.burnin:]
+        return draws.reshape((-1,) + draws.shape[2:])
     
     def viz_chains(self, param_name, _vector_dim = 1, title = ""):
         if len(self.res.position[param_name].shape) != 2: _vector_dim = self.res.position[param_name].shape[2]
@@ -143,7 +147,10 @@ class BHM:
         plt.show()
     
     def mean_estimates(self, param_name): 
-        # TODO: This currently also includes the burnin. Should be removed using self.burnin attribute.
-        return jnp.array([
-            self.res.position[param_name][chain].mean(axis = 0)  for chain in range(self.num_chains)
-        ]).mean(axis = 0)
+        return self._posterior_draws(param_name).mean(axis = 0)
+
+    def confidence_interval(self, param_name, alpha = 0.05):
+        draws = self._posterior_draws(param_name)
+        lower = jnp.quantile(draws, alpha / 2, axis = 0)
+        upper = jnp.quantile(draws, 1 - alpha / 2, axis = 0)
+        return {"lower": lower, "upper": upper}
