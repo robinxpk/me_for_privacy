@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 
 # %%
-data_path = r"./data/"
+data_path = r"../data/"
 variable_subset = ["LBXT4", "RIDAGEYR", "bmi", "DR1TKCAL"]
 # Variable(s) affected by error
 error_subset = ["DR1TKCAL"]

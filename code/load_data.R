@@ -82,7 +82,6 @@ factor_vars = c(
     # "LBXTC"         
 )
 # dat[, factor_vars] = as.character(dat[, factor_vars])
-# 
 
 # Check colinerity: 
 write.table(
@@ -93,6 +92,9 @@ write.table(
     dec = "."
 )
 
+# -- 
+freq = lm(LBXT4 ~bmi + RIDAGEYR + DR1TKCAL, data = dat)
+summary(freq)
 
 # -- Fitting a lin model on "sigmoid" data. lol.
 ## Creating sigmoid data frame to ease working with the data

@@ -1,4 +1,23 @@
 #### TODOs ####
+- [ ] !!! For the ePIT correction, I have the wrong sigma... I implemented it such that I sample 2 log(sigma^2) or something. The samples taken by naive model are correct, though. Something is not right :D 
+- [ ] DEAL WITH: Removed negative solution for normal data. 
+
+Error must not depend on the data
+	-> Why then use different Sigmas for each obs
+
+- Fit Code
+- Uncertainty of the estimate before and after, i.e. how does the uncertainty Change? 
+- Larger Data set 
+- Error on all variables 
+- ePIT only for now? 
+- Do we have to condition f_p on the other covariates? 
+	- Haben nicht die marginal genutzt, sondern Joint. Hier sind slides falsch bzw. meine Notation der KDE falsch
+	> p(x_kcal)
+	> p(x_1, …, x_p) / p(x_2, …, x_p) 
+- Change sampler 
+
+
+
 - [ ] Raphael hat mit masked arrays oder so gearbeitet. Die Matritzen kombinieren die Information über Fehlerspalten und Werte. Klingt besser. 
 - [ ] Potentially change sampler to not be forced to have derivatives; especially for ePIT: Could use eCDF and would not need invertible and continuous proxi of CDF (using sigmoid as of now).
 - [ ] lognormal density assumes single error variance, i.e. only one column touched by error; Extend logic to work with vectors.
@@ -179,7 +198,6 @@ Für priors:
 2. Simulation 
 
 ! Prior predictive checks
-
 
 ## Errors
 *Note: An error should only increase the variance and not introduce any bias!* 
