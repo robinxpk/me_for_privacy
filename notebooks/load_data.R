@@ -30,7 +30,7 @@ basemodel <- Surv(PERMTH_EXM, MORTSTAT) ~ scale(I(log(LBXT4+.1))) + RIDAGEYR + m
 
 ## compute vibration for LBXBCD, serum levels of the heavy metal cadmium, in association with time to death
 dat <- subset(dat, !is.na(WTMEC4YR))
-dat <- dat[complete.cases(dat), ]
+# dat <- dat[complete.cases(dat), ]
 
 # Prepare data for python Berkson-Code:
 # Python-Code does not alter factor / string variables --> make sure all factor variables are actually factors / strings 

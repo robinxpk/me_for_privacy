@@ -200,16 +200,21 @@ plot_coverage = function(
             ))
         ) + 
         ggh4x::facetted_pos_scales(
-              # ePIT beta3 für free scale, da rest okay und bei fixed scale eh kaum Unterschied
+              # # ePIT beta3 für free scale, da rest okay und bei fixed scale eh kaum Unterschied
+              # y = list(
+              #     model == "naive" ~ scale_y_continuous(limits = c(-0.001, 0.001)),
+              #     model == "corrected" ~ scale_y_continuous(limits = c(-0.001, 0.001))
+              # )
+              # # ePIT beta3 für free scale, da rest okay und bei fixed scale eh kaum Unterschied
               # y = list(
               #     model == "naive" ~ scale_y_continuous(limits = c(-0.5, 0.1)),
               #     model == "corrected" ~ scale_y_continuous(limits = c(-0.001, 0.0002))
               # )
               # ePIT log_sigma
-              y = list(
-                  model == "naive" ~ scale_y_continuous(limits = c(0.5, 0.7)),
-                  model == "corrected" ~ scale_y_continuous(limits = c(0.5, 0.8))
-              )
+              # y = list(
+              #     model == "naive" ~ scale_y_continuous(limits = c(0.5, 0.7)),
+              #     model == "corrected" ~ scale_y_continuous(limits = c(0.5, 0.8))
+              # )
           ) +
         labs(x = "Iteration", y = latex_string) + 
         theme_classic(base_size = 20) +           theme(
@@ -314,8 +319,8 @@ long = long |>
 
 
 # Result Plots ------------------------------------------------------------
-selected_error = "ePIT"
-selected_error_index = 1
+selected_error = "lognormal"
+selected_error_index = 2
 parameter_names = c("beta0", "beta1", "beta2", "beta3")
 plot_dir = "../images/2026_03_10 Zwischenergebnisse/"
 plot_width = 8
@@ -330,7 +335,7 @@ plot_bias(
     selected_error = selected_error, 
     selected_error_variance = selected_error_variance,
 )
-plot_coverage(df = long, selected_error = selected_error, parameter_name = "log_sigma", error_variance = selected_error_variance, scales_ = "fixed")
+plot_coverage(df = long, selected_error = selected_error, parameter_name = "beta3", error_variance = selected_error_variance, scales_ = "free")
 
 plotfile_name = paste0("bias_",  selected_error, "_", selected_error_variance, ".png")
 # Parameter Estimate Plots

@@ -10,8 +10,6 @@ import jax.numpy as jnp
     # 1) Use the TRANSPOSED X as input for the KDE model, such that it is compatible with the JAX KDE "gaussian_kde".
     # 2) Use the TRANSPOSED X as input for the evaluate method
 
-
-
 class KDE_Model():
     # This class is only for KDEs to interhit from. It holds the most important method: evaluate, which is used inthe log-posterior density and evaluates the KDE on a given input X. 
     def __init__(self, data_transposed): 

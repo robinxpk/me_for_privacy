@@ -1,7 +1,6 @@
 name: me_for_privacy
 channels:
   - defaults
-  - conda-forge
 dependencies:
   - matplotlib
   - scikit-learn
@@ -26,7 +25,9 @@ dependencies:
   - anaconda-auth
   - setuptools
   - conda=26.1.1
+  - anaconda_powershell_prompt
   - conda-libmamba-solver
   - conda-content-trust
   - anaconda-anon-usage
+  - plotnine
 prefix: C:\Users\robin\miniconda3\envs\me_for_privacy
